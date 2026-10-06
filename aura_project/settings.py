@@ -17,6 +17,8 @@ DATA_DIR = Path(os.getenv('DATA_DIR', BASE_DIR))
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-key-change-in-production')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+# The Docker health probe hits 127.0.0.1 directly, so loopback must always be accepted.
+ALLOWED_HOSTS += [h for h in ('localhost', '127.0.0.1') if h not in ALLOWED_HOSTS]
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
 
 # Behind Coolify's proxy + Cloudflare tunnel
