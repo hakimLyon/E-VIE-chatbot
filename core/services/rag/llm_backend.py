@@ -12,7 +12,7 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "")
 CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
-CF_AI_CHAT_MODEL = os.getenv("CF_AI_CHAT_MODEL", "@cf/zai-org/glm-5.3-flash")
+CF_AI_CHAT_MODEL = os.getenv("CF_AI_CHAT_MODEL", "@cf/mistralai/mistral-small-3.1-24b-instruct")
 # Small fast model for the question-rewrite step (GLM-4.7 without thinking follows
 # the "rewrite, do not answer" instruction far better than Llama 8B).
 CF_AI_REWRITE_MODEL = os.getenv("CF_AI_REWRITE_MODEL", "@cf/zai-org/glm-4.7-flash")
