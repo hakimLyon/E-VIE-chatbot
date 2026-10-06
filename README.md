@@ -28,7 +28,7 @@ flowchart LR
     R --> Q[rag_chat.py<br/>rewrite, retrieve, answer]
     I --> C[(Chroma<br/>db/chroma_db)]
     Q --> C
-    Q --> O[Cloudflare Workers AI<br/>bge-m3 + Llama 3.1 8B]
+    Q --> O[Cloudflare Workers AI<br/>bge-m3 + Mistral Small 3.1]
 ```
 
 The leaf and sentiment models run inside the app (CPU). The chat assistant calls Cloudflare Workers AI through its OpenAI-compatible API for embeddings and generation, so the server does not need a GPU.
@@ -54,7 +54,7 @@ This is the part I spent most time on. The assistant does not answer from the la
 1. **Ingestion** (`core/services/rag/ingestion.py`). PDFs in `docs/` are read with PyMuPDF and cut into chunks of 1000 characters with an overlap of 100. Each chunk is embedded with `@cf/baai/bge-m3` on Workers AI and stored in a persistent Chroma database at `$DATA_DIR/chroma_db`. Ingestion is skipped when the collection already has data (`python manage.py ingest_docs --force` rebuilds it).
 2. **Question rewriting** (`rag_chat.py`). If there is earlier conversation, the model first rewrites the new question so it stands on its own ("and what about the law?" becomes a full question).
 3. **Retrieval** (`retrieval.py`). The five closest chunks by cosine similarity are fetched.
-4. **Answer**. The chat model (`CF_AI_CHAT_MODEL`, default `@cf/meta/llama-3.1-8b-instruct-fast`) gets those chunks and is told to answer using only that context, in the language of the question.
+4. **Answer**. The chat model (`CF_AI_CHAT_MODEL`, default `@cf/mistralai/mistral-small-3.1-24b-instruct`) gets those chunks and is told to answer using only that context, in the language of the question.
 
 The knowledge base is five PDFs on environmental protection, environmental requirements, human well-being and the right to a clean environment (about 300 pages in total).
 
@@ -145,7 +145,7 @@ curl -X POST -H "Content-Type: application/json" -d '{"message":"What is the rig
 | `CSRF_TRUSTED_ORIGINS` | comma separated origins, e.g. `https://evie.example.org` |
 | `DATA_DIR` | where SQLite, uploads and the Chroma index live (`/data` in Docker) |
 | `CF_ACCOUNT_ID`, `CF_API_TOKEN` | Cloudflare account id and Workers AI token |
-| `CF_AI_CHAT_MODEL` | generation model, default `@cf/meta/llama-3.1-8b-instruct-fast` |
+| `CF_AI_CHAT_MODEL` | generation model, default `@cf/mistralai/mistral-small-3.1-24b-instruct` |
 | `CF_AI_EMBED_MODEL` | embedding model, default `@cf/baai/bge-m3` (changing it requires `ingest_docs --force`) |
 | `RAG_TOP_K`, `RAG_HISTORY_TURNS` | chunks retrieved per question, conversation turns kept per session |
 | `WEB_CONCURRENCY` | gunicorn workers in Docker, default 2 |

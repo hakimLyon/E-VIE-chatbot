@@ -12,7 +12,7 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "")
 CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
-CF_AI_CHAT_MODEL = os.getenv("CF_AI_CHAT_MODEL", "@cf/meta/llama-3.1-8b-instruct-fast")
+CF_AI_CHAT_MODEL = os.getenv("CF_AI_CHAT_MODEL", "@cf/mistralai/mistral-small-3.1-24b-instruct")
 CF_AI_EMBED_MODEL = os.getenv("CF_AI_EMBED_MODEL", "@cf/baai/bge-m3")
 
 
