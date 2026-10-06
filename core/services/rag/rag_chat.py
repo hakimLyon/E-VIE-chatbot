@@ -9,13 +9,24 @@ from core.services.rag.retrieval import get_retriever
 
 HISTORY_TURNS = int(os.getenv("RAG_HISTORY_TURNS", "6"))
 
-REWRITE_SYSTEM = """Rewrite the user's question so that it becomes a standalone
-question that can be understood without the chat history. Keep the user's language.
-Return ONLY the rewritten question."""
+REWRITE_SYSTEM = """Réécris la dernière question de l'utilisateur pour qu'elle soit compréhensible
+seule, sans l'historique de la conversation. Garde la langue de l'utilisateur.
+Si le message n'est pas une question (salutation, remerciement...), renvoie-le tel quel.
+Renvoie UNIQUEMENT la question réécrite."""
 
-ANSWER_SYSTEM = """You are E-VIE, an assistant on environmental protection.
-Answer using ONLY the provided context. Reply in the same language as the question.
-If the context does not contain the answer, say so briefly instead of guessing."""
+ANSWER_SYSTEM = """Tu es E-VIE, l'assistant d'une plateforme sur la protection de l'environnement.
+Tu réponds toujours en français, sauf si l'utilisateur écrit clairement dans une autre langue.
+
+Règles :
+1. Si le message est une salutation ou une simple conversation (bonjour, merci, ça va...),
+   réponds brièvement et chaleureusement, présente-toi en une phrase et propose ton aide
+   sur l'environnement. N'utilise pas le contexte dans ce cas.
+2. Si le contexte fourni permet de répondre, réponds en t'appuyant UNIQUEMENT sur lui,
+   de façon claire et structurée.
+3. Si le contexte ne permet pas de répondre, dis-le en une phrase, sans inventer, et propose
+   des sujets sur lesquels tu peux aider : protection de l'environnement, droit à un
+   environnement sain, bien-être humain et environnement, rôle des écoles et des
+   communautés face aux risques environnementaux."""
 
 
 def _history_messages(history):
@@ -47,10 +58,10 @@ def ask_question(question, history=None):
     context = "\n\n".join(doc.page_content for doc in docs)
 
     # -------- Answer --------
-    prompt = f"""Context:
+    prompt = f"""Contexte :
 {context}
 
-Question:
+Message de l'utilisateur :
 {question}"""
 
     messages = [SystemMessage(content=ANSWER_SYSTEM), HumanMessage(content=prompt)]
