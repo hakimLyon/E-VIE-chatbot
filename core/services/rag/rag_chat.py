@@ -1,73 +1,57 @@
 # pipelines/rag_chat.py
 
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-from langchain_ollama.llms import OllamaLLM
+import os
 
-# from pipelines.retrieval import get_retriever
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
+from core.services.rag.llm_backend import get_llm
 from core.services.rag.retrieval import get_retriever
-retriever = get_retriever()
 
-llm = OllamaLLM(model="ministral-3:latest")
+HISTORY_TURNS = int(os.getenv("RAG_HISTORY_TURNS", "6"))
 
-chat_history = []
+REWRITE_SYSTEM = """Rewrite the user's question so that it becomes a standalone
+question that can be understood without the chat history. Keep the user's language.
+Return ONLY the rewritten question."""
+
+ANSWER_SYSTEM = """You are E-VIE, an assistant on environmental protection.
+Answer using ONLY the provided context. Reply in the same language as the question.
+If the context does not contain the answer, say so briefly instead of guessing."""
 
 
-def ask_question(question):
+def _history_messages(history):
+    """history is a list of [question, answer] pairs kept in the user's session."""
+    messages = []
+    for question, answer in history[-HISTORY_TURNS:]:
+        messages.append(HumanMessage(content=question))
+        messages.append(AIMessage(content=answer))
+    return messages
 
-    global chat_history
 
-    print("\nUser Question:", question)
+def ask_question(question, history=None):
+    history = history or []
+    llm = get_llm()
 
     # -------- Rewrite question if history exists --------
-
-    if len(chat_history) > 0:
-
-        rewrite_messages = [
-            SystemMessage(
-                content="""Rewrite the user's question so that it becomes a standalone
-question that can be understood without the chat history.
-Return ONLY the rewritten question."""
-            )
-        ] + chat_history + [HumanMessage(content=question)]
-
-        standalone_question = llm.invoke(rewrite_messages).strip()
-
+    if history:
+        rewrite_messages = (
+            [SystemMessage(content=REWRITE_SYSTEM)]
+            + _history_messages(history)
+            + [HumanMessage(content=question)]
+        )
+        standalone_question = llm.invoke(rewrite_messages).content.strip() or question
     else:
-
         standalone_question = question
 
-    print("Standalone Question:", standalone_question)
-
     # -------- Retrieve documents --------
+    docs = get_retriever().invoke(standalone_question)
+    context = "\n\n".join(doc.page_content for doc in docs)
 
-    docs = retriever.invoke(standalone_question)
-
-    context = "\n\n".join([doc.page_content for doc in docs])
-
-    print("\nRetrieved Context:\n", context)
-
-    # -------- Build final prompt --------
-
-    prompt = f"""
-Answer the question using ONLY the provided context.
-
-Context:
+    # -------- Answer --------
+    prompt = f"""Context:
 {context}
 
 Question:
-{question}
-"""
+{question}"""
 
-    messages = [
-        SystemMessage(content="You answer questions using retrieved documents."),
-        HumanMessage(content=prompt)
-    ]
-
-    response = llm.invoke(messages)   # already a string
-
-    # -------- Save conversation --------
-
-    chat_history.append(HumanMessage(content=question))
-    chat_history.append(AIMessage(content=response))
-
-    return response
+    messages = [SystemMessage(content=ANSWER_SYSTEM), HumanMessage(content=prompt)]
+    return llm.invoke(messages).content.strip()

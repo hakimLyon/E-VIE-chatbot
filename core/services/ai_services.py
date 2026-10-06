@@ -254,14 +254,16 @@ from core.services.rag.rag_chat import ask_question
 rag_initialized = False
 
 
-def rag_query(question):
+def rag_query(question, history=None):
+    """Answer a question from the PDF knowledge base.
 
+    `history` is the list of [question, answer] pairs of the current user session,
+    so follow-up questions can be rewritten into standalone ones.
+    """
     global rag_initialized
 
     if not rag_initialized:
-        run_ingestion()
+        run_ingestion()  # no-op when the index is already populated
         rag_initialized = True
 
-    answer = ask_question(question)
-
-    return answer
+    return ask_question(question, history)

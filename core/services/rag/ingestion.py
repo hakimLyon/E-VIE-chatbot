@@ -1,70 +1,54 @@
 # pipelines/ingestion.py
 
-import os
-from langchain_community.document_loaders import DirectoryLoader, PyMuPDFLoader
-from langchain_text_splitters import CharacterTextSplitter
-from langchain_chroma import Chroma
-from langchain_ollama import OllamaEmbeddings
-
-#DOCS_PATH = "docs"
-#DB_PATH = "db/chroma_db"
-
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parents[3]
+import fitz  # PyMuPDF
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from core.services.rag.retrieval import BASE_DIR, DB_PATH, get_vectorstore
 
 DOCS_PATH = BASE_DIR / "docs"
-DB_PATH = BASE_DIR / "db" / "chroma_db"
+
+
 def load_documents():
-    loader = DirectoryLoader(
-        path=DOCS_PATH,
-        glob="*.pdf",
-        loader_cls=PyMuPDFLoader
-    )
-
-    documents = loader.load()
-
+    documents = []
+    for pdf in sorted(DOCS_PATH.glob("*.pdf")):
+        with fitz.open(pdf) as doc:
+            for page in doc:
+                text = page.get_text().strip()
+                if text:
+                    documents.append(Document(
+                        page_content=text,
+                        metadata={"source": pdf.name, "page": page.number + 1},
+                    ))
     if not documents:
-        raise ValueError("No documents found in docs/")
-
+        raise ValueError(f"No documents found in {DOCS_PATH}")
     return documents
 
 
 def split_documents(documents):
-
-    splitter = CharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=100
-    )
-
-    chunks = splitter.split_documents(documents)
-
-    return chunks
+    # Recursive splitter enforces the size limit; CharacterTextSplitter only splits on
+    # blank lines and happily returns page-sized chunks.
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    return splitter.split_documents(documents)
 
 
-def create_vectorstore(chunks):
-
-    embeddings = OllamaEmbeddings(model="bge-m3")
-
-    vectorstore = Chroma.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        persist_directory=DB_PATH
-    )
-
-    return vectorstore
+def vectorstore_is_populated():
+    return DB_PATH.exists() and get_vectorstore()._collection.count() > 0
 
 
-def run_ingestion():
-
-    if os.path.exists(DB_PATH):
-        print("Vector DB already exists")
+def run_ingestion(force=False):
+    """Embed the PDFs in docs/ into Chroma. Skipped when the index already has data."""
+    store = get_vectorstore()
+    if not force and store._collection.count() > 0:
+        print(f"Vector DB already has {store._collection.count()} chunks")
         return
+    if force and store._collection.count() > 0:
+        store.reset_collection()
 
-    docs = load_documents()
-
-    chunks = split_documents(docs)
-
-    create_vectorstore(chunks)
-
-    print("Ingestion complete")
+    chunks = split_documents(load_documents())
+    print(f"Embedding {len(chunks)} chunks...")
+    # Chroma's add_documents calls the embedding client in batches of chunk_size.
+    store.add_documents(chunks)
+    print(f"Ingestion complete: {store._collection.count()} chunks stored")

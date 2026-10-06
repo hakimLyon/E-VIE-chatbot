@@ -28,10 +28,10 @@ flowchart LR
     R --> Q[rag_chat.py<br/>rewrite, retrieve, answer]
     I --> C[(Chroma<br/>db/chroma_db)]
     Q --> C
-    Q --> O[Ollama<br/>bge-m3 + ministral-3]
+    Q --> O[Cloudflare Workers AI<br/>bge-m3 + Llama 3.1 8B]
 ```
 
-Everything runs locally. No call leaves the machine once the models are downloaded, which matters when the people using it have patchy internet.
+The leaf and sentiment models run inside the app (CPU). The chat assistant calls Cloudflare Workers AI through its OpenAI-compatible API for embeddings and generation, so the server does not need a GPU.
 
 ## The three AI pieces
 
@@ -51,10 +51,10 @@ Code: `core/services/sentiment_service.py`, class `SentimentAnalyzer1`.
 
 This is the part I spent most time on. The assistant does not answer from the language model's memory. It looks things up first.
 
-1. **Ingestion** (`core/services/rag/ingestion.py`). PDFs in `docs/` are read with PyMuPDF and cut into chunks of 1000 characters with an overlap of 100. Each chunk is embedded with `bge-m3` through Ollama and stored in a persistent Chroma database at `db/chroma_db`. If that folder already exists, ingestion is skipped.
+1. **Ingestion** (`core/services/rag/ingestion.py`). PDFs in `docs/` are read with PyMuPDF and cut into chunks of 1000 characters with an overlap of 100. Each chunk is embedded with `@cf/baai/bge-m3` on Workers AI and stored in a persistent Chroma database at `$DATA_DIR/chroma_db`. Ingestion is skipped when the collection already has data (`python manage.py ingest_docs --force` rebuilds it).
 2. **Question rewriting** (`rag_chat.py`). If there is earlier conversation, the model first rewrites the new question so it stands on its own ("and what about the law?" becomes a full question).
 3. **Retrieval** (`retrieval.py`). The five closest chunks by cosine similarity are fetched.
-4. **Answer**. `ministral-3` gets those chunks and is told to answer using only that context.
+4. **Answer**. The chat model (`CF_AI_CHAT_MODEL`, default `@cf/meta/llama-3.1-8b-instruct-fast`) gets those chunks and is told to answer using only that context, in the language of the question.
 
 The knowledge base is five PDFs on environmental protection, environmental requirements, human well-being and the right to a clean environment (about 300 pages in total).
 
@@ -87,33 +87,38 @@ Made-AI-Django/
   media/                      uploaded images
 ```
 
-A few files are older experiments and are not part of the running path: `core/services.py` (an earlier Gemini and YOLO version), `core/services/ai_service.py` and `core/services/rag/rag_chat1.py`. I kept them for reference.
+A few files are older experiments and are not part of the running path: `core/services.py` (an earlier Gemini and YOLO version), and `core/services/ai_service.py`. I kept them for reference.
 
 ## Running it
 
-You need Python 3.11 or 3.12, and [Ollama](https://ollama.com) installed.
+You need Python 3.12 and a Cloudflare account with Workers AI enabled (an API token with the *Workers AI: Read* permission and your account id).
 
 ```bash
 # 1. environment
 python -m venv venv
 source venv/bin/activate          # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
 
 # 2. settings
-cp .env.example .env              # then edit SECRET_KEY
+cp .env.example .env              # set SECRET_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, DATA_DIR=.
 
-# 3. local models for the chat assistant
-ollama pull bge-m3
-ollama pull ministral-3
-
-# 4. database and server
+# 3. database, vector index, server
 python manage.py migrate
+python manage.py ingest_docs
 python manage.py runserver
 ```
 
-Open `http://localhost:8000`. Run commands from the project root, because the retriever looks for `db/chroma_db` relative to it.
+Open `http://localhost:8000`. The first start downloads the sentiment model from Hugging Face.
 
-The first start is slow. The sentiment model is downloaded from Hugging Face, and the first chat question builds the vector store from the PDFs. After that it is quick.
+### Docker / Coolify
+
+The `Dockerfile` builds a CPU-only image with the sentiment model baked in. On start the entrypoint runs migrations, ingests the PDFs if the index is empty, then serves with gunicorn on port 8000.
+
+```bash
+docker compose up --build          # local test, reads .env
+```
+
+Deployment on Coolify: application from this Git repository, build pack **Dockerfile**, port `8000`, a persistent volume mounted on `/data`, and the variables from `.env.example` as environment variables (production: `DEBUG=False`, `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` set to the public domain).
 
 ## API
 
@@ -134,10 +139,16 @@ curl -X POST -H "Content-Type: application/json" -d '{"message":"What is the rig
 
 | Variable | Purpose |
 |----------|---------|
-| `DEBUG` | `True` for development, `False` in production |
+| `DEBUG` | `True` for development, `False` (default) in production |
 | `SECRET_KEY` | Django secret, set your own |
 | `ALLOWED_HOSTS` | comma separated hosts |
-| `GOOGLE_API_KEY` | only needed by the old Gemini code, not by the current pipeline |
+| `CSRF_TRUSTED_ORIGINS` | comma separated origins, e.g. `https://evie.example.org` |
+| `DATA_DIR` | where SQLite, uploads and the Chroma index live (`/data` in Docker) |
+| `CF_ACCOUNT_ID`, `CF_API_TOKEN` | Cloudflare account id and Workers AI token |
+| `CF_AI_CHAT_MODEL` | generation model, default `@cf/meta/llama-3.1-8b-instruct-fast` |
+| `CF_AI_EMBED_MODEL` | embedding model, default `@cf/baai/bge-m3` (changing it requires `ingest_docs --force`) |
+| `RAG_TOP_K`, `RAG_HISTORY_TURNS` | chunks retrieved per question, conversation turns kept per session |
+| `WEB_CONCURRENCY` | gunicorn workers in Docker, default 2 |
 
 The `.env` file is ignored by git. Do not commit real keys.
 
@@ -145,8 +156,7 @@ The `.env` file is ignored by git. Do not commit real keys.
 
 I would rather list these than have someone find them later.
 
-- **Chat history is global.** `rag_chat.py` keeps one conversation in memory, so all visitors share it. It should be tied to a session.
-- **Persistence is partial.** The database models exist and the admin is set up, but the current chat, detection and sentiment endpoints do not write to them, so `/api/chat/history/` stays empty.
+- **Persistence is partial.** The database models exist and the admin is set up, but only the chat endpoint writes to them; detection and sentiment results are not stored.
 - **No evaluation yet.** I have not measured retrieval quality (recall at k, answer faithfulness) or how well the confidence scores are calibrated. Softmax confidence from the leaf model is not a probability you should fully trust, especially on field photos that look different from the training images.
 - **Sentiment is binary.** A neutral class would be more honest.
 - **Chunking is basic.** A fixed 1000 character split can cut a paragraph in the middle. Splitting on structure or testing other sizes is on the list.
@@ -154,7 +164,7 @@ I would rather list these than have someone find them later.
 
 ## Stack
 
-Django 5, Django REST Framework, django-cors-headers, SQLite, PyTorch and torchvision, Hugging Face Transformers, LangChain, Chroma, PyMuPDF, Ollama, Tailwind CSS (CDN).
+Django 5, Django REST Framework, django-cors-headers, SQLite, PyTorch and torchvision, Hugging Face Transformers, LangChain, Chroma, PyMuPDF, Cloudflare Workers AI, gunicorn, whitenoise, Tailwind CSS (CDN).
 
 ## Author
 

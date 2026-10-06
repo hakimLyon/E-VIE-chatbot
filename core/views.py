@@ -1,5 +1,6 @@
 """Views for Aura AI application."""
 
+from django.conf import settings
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
@@ -342,16 +343,30 @@ from core.services.ai_services import rag_query
 @csrf_exempt
 def chat_api(request):
 
-    if request.method == "POST":
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request"}, status=400)
 
+    try:
         data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-        user_message = data.get("message")
+    user_message = (data.get("message") or "").strip()
+    if not user_message:
+        return JsonResponse({"error": "No message provided"}, status=400)
 
-        response = rag_query(user_message)
+    # Conversation history lives in the user's session, not in a process-wide
+    # global, so concurrent users do not see each other's context.
+    history = request.session.get("chat_history", [])
 
-        return JsonResponse({
-            "response": response
-        })
+    try:
+        response = rag_query(user_message, history)
+    except Exception as e:
+        return JsonResponse({"error": f"Chat error: {e}"}, status=500)
 
-    return JsonResponse({"error": "Invalid request"}, status=400)
+    history.append([user_message, response])
+    request.session["chat_history"] = history[-settings.RAG_HISTORY_TURNS:]
+
+    ChatMessage.objects.create(message=user_message, response=response)
+
+    return JsonResponse({"response": response})
