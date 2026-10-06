@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}E-VIE{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            -webkit-user-select: auto;
+            -moz-user-select: auto;
+            user-select: auto;
+        }
+        ::selection {
+            background-color: rgba(99, 102, 241, 0.2);
+            color: rgb(67, 56, 202);
+        }
+        
+        body {
+            background-image: url('/static/images/pexels-catiamatos-1072179.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            min-height: 100vh;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                background-attachment: scroll;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="text-white font-sans">
+<div class="min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="hidden md:flex w-64 bg-white border-r border-slate-200 flex-col shadow-sm">
+        <div class="p-6 border-b border-slate-200">
+            <div class="flex items-center gap-3 cursor-pointer">
+                
+                <!-- Logo -->
+                <div class="w-16 h-16 rounded-lg flex items-center justify-center overflow-hidden">
+                    <img src="/static/images/logo.png" class="w-full h-full object-contain" alt="Logo">
+                </div>
+
+                <div>
+                    <h1 class="font-bold text-lg text-slate-900">E-VIE</h1>
+                    <p class="text-xs text-slate-500">AI Platform</p>
+                </div>
+
+            </div>
+        </div>
+
+            <nav class="flex-1 px-4 py-6 space-y-2">
+                <a href="/" class="flex items-center gap-3 px-4 py-3 rounded-lg {% if request.resolver_match.url_name == 'home' %}bg-indigo-50 text-indigo-600{% else %}text-slate-600 hover:bg-slate-50{% endif %}">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-3m0 0l7-4 7 4M5 9v10a1 1 0 001 1h3m10-11l2 3m-2-3V9m0 0a9 9 0 010 18m0 0a9 9 0 110-18z"></path>
+                    </svg>
+                    <span class="font-medium">Home</span>
+                </a>
+
+                <a href="/detect/" class="flex items-center gap-3 px-4 py-3 rounded-lg {% if request.resolver_match.url_name == 'object_detection' %}bg-indigo-50 text-indigo-600{% else %}text-slate-600 hover:bg-slate-50{% endif %}">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <span class="font-medium">Détection des maladies</span>
+                </a>
+
+                <a href="/sentiment/" class="flex items-center gap-3 px-4 py-3 rounded-lg {% if request.resolver_match.url_name == 'sentiment_analysis' %}bg-indigo-50 text-indigo-600{% else %}text-slate-600 hover:bg-slate-50{% endif %}">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span class="font-medium">Analyse des sentiments</span>
+                </a>
+
+                <a href="/chat/" class="flex items-center gap-3 px-4 py-3 rounded-lg {% if request.resolver_match.url_name == 'chatbot' %}bg-indigo-50 text-indigo-600{% else %}text-slate-600 hover:bg-slate-50{% endif %}">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                    <span class="font-medium">Chatbot</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1">
+            <!-- Mobile Header -->
+            <header class="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 px-4 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-xs">M</span>
+                    </div>
+                    <span class="font-bold text-lg">E-VIE</span>
+                </div>
+                <button id="mobileMenuBtn" class="p-2 text-slate-600 hover:bg-slate-100 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </header>
+
+            <!-- Mobile Menu -->
+            <nav id="mobileMenu" class="hidden fixed inset-0 bg-white z-30 pt-20 px-6 md:hidden">
+                <div class="space-y-6">
+                    <a href="/" class="block text-lg font-semibold text-slate-800 hover:text-indigo-600">Home</a>
+                    <a href="/detect/" class="block text-lg font-semibold text-slate-800 hover:text-indigo-600">Détection des maladies</a>
+                    <a href="/sentiment/" class="block text-lg font-semibold text-slate-800 hover:text-indigo-600">Analyse des sentiments</a>
+                    <a href="/chat/" class="block text-lg font-semibold text-slate-800 hover:text-indigo-600">Chatbot</a>
+                </div>
+            </nav>
+
+            <!-- Page Content -->
+            <main class="pt-24 md:pt-10 pb-20 px-4 md:px-10">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Floating Chat Window -->
+    <div id="floatingChatWindow" class="fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-2xl shadow-2xl border border-slate-200 hidden z-30 flex flex-col transform transition-all duration-300 ease-out">
+        <!-- Chat Header -->
+        <div class="bg-indigo-600 text-white p-4 rounded-t-2xl flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-semibold">AI Assistant</h3>
+                    <p class="text-xs text-white/80">Always here to help</p>
+                </div>
+            </div>
+            <button id="closeChatBtn" class="text-white/80 hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Chat Messages -->
+        <div id="floatingChatMessages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-slate-50 to-white">
+            <div class="text-center py-8">
+                <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                </div>
+                <p class="text-slate-600 text-sm">Start a conversation</p>
+            </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="border-t border-slate-200 bg-white p-4 rounded-b-2xl">
+            <form id="floatingChatForm" class="flex gap-2">
+                <input 
+                    type="text"
+                    id="floatingMessageInput"
+                    placeholder="Type your message..."
+                    class="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none text-sm text-black placeholder-slate-500"
+                    required
+                >
+                <button 
+                    type="submit"
+                    id="floatingSendBtn"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Floating Chat Button (Fixed Position) -->
+    <button id="floatingChatBtn" class="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 flex items-center justify-center z-20 transition-all hover:scale-110">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+        </svg>
+    </button>
+
+    <script>
+        // Mobile menu toggle
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // Floating chat functionality
+        const floatingChatBtn = document.getElementById('floatingChatBtn');
+        const floatingChatWindow = document.getElementById('floatingChatWindow');
+        const closeChatBtn = document.getElementById('closeChatBtn');
+        const floatingChatForm = document.getElementById('floatingChatForm');
+        const floatingMessageInput = document.getElementById('floatingMessageInput');
+        const floatingSendBtn = document.getElementById('floatingSendBtn');
+        const floatingChatMessages = document.getElementById('floatingChatMessages');
+
+        // Toggle chat window
+        floatingChatBtn.addEventListener('click', () => {
+            floatingChatWindow.classList.toggle('hidden');
+            if (!floatingChatWindow.classList.contains('hidden')) {
+                floatingMessageInput.focus();
+                // Add slide-up animation
+                floatingChatWindow.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    floatingChatWindow.style.transform = 'translateY(0)';
+                }, 10);
+            }
+        });
+
+        // Close chat window
+        closeChatBtn.addEventListener('click', () => {
+            floatingChatWindow.classList.add('hidden');
+        });
+
+        // Chat functions
+        function addFloatingMessage(text, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+            
+            const messageBubble = document.createElement('div');
+            messageBubble.className = `max-w-xs px-4 py-2 rounded-lg text-sm ${
+                isUser 
+                    ? 'bg-indigo-600 text-white rounded-br-none shadow-md' 
+                    : 'bg-slate-100 border border-slate-300 text-slate-900 rounded-bl-none'
+            }`;
+            messageBubble.textContent = text;
+            
+            messageDiv.appendChild(messageBubble);
+            floatingChatMessages.appendChild(messageDiv);
+            floatingChatMessages.scrollTop = floatingChatMessages.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        function showFloatingTypingIndicator() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'flex justify-start';
+            messageDiv.id = 'floatingTypingIndicator';
+            
+            const messageBubble = document.createElement('div');
+            messageBubble.className = 'bg-slate-100 border border-slate-300 px-4 py-2 rounded-lg rounded-bl-none';
+            messageBubble.innerHTML = '<div class="flex gap-1"><span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span><span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce delay-100"></span><span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce delay-200"></span></div>';
+            
+            messageDiv.appendChild(messageBubble);
+            floatingChatMessages.appendChild(messageDiv);
+            floatingChatMessages.scrollTop = floatingChatMessages.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        function removeFloatingTypingIndicator() {
+            const indicator = document.getElementById('floatingTypingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        // Handle chat form submission
+        floatingChatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const message = floatingMessageInput.value.trim();
+            if (!message) return;
+
+            // Clear initial message if present
+            if (floatingChatMessages.innerHTML.includes('Start a conversation')) {
+                const firstMessage = floatingChatMessages.querySelector('div');
+                if (firstMessage) {
+                    firstMessage.remove();
+                }
+            }
+
+            // Add user message
+            addFloatingMessage(message, true);
+            floatingMessageInput.value = '';
+            floatingMessageInput.focus();
+            floatingSendBtn.disabled = true;
+
+            // Show typing indicator
+            showFloatingTypingIndicator();
+
+            try {
+                const response = await fetch('/api/chat/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ message })
+                });
+
+                const data = await response.json();
+                removeFloatingTypingIndicator();
+
+                if (response.ok) {
+                    addFloatingMessage(data.response, false);
+                } else {
+                    addFloatingMessage('Sorry, I encountered an error. Please try again.', false);
+                }
+            } catch (error) {
+                removeFloatingTypingIndicator();
+                addFloatingMessage('Sorry, I could not connect to the server.', false);
+            } finally {
+                floatingSendBtn.disabled = false;
+            }
+        });
+
+        // CSRF token helper
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Close chat when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!floatingChatWindow.classList.contains('hidden') &&
+                !floatingChatWindow.contains(e.target) &&
+                !floatingChatBtn.contains(e.target)) {
+                floatingChatWindow.classList.add('hidden');
+            }
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

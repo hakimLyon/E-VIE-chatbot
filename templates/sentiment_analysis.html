@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}Analyse des sentiments - E-VIE{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sentiment-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .sentiment-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    .sentiment-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+    }
+    .sentiment-input:focus {
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .sentiment-badge {
+        border-radius: 16px;
+        padding: 24px;
+        background: white;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    }
+    .score-bar {
+        border-radius: 10px;
+        background: linear-gradient(90deg, #e5e7eb, #d1d5db);
+    }
+    .animate-bounce-light {
+        animation: bounce 2s infinite;
+    }
+    @keyframes bounce {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    .text-input-enhanced {
+        background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen  py-12 px-4">
+    <div class="max-w-5xl mx-auto">
+        <div class="mb-12">
+            <div class="flex items-center gap-3 mb-3">
+                <h1 class="text-5xl font-bold text-slate-200">Analyse des sentiments</h1>
+            </div>
+            <p class="text-lg text-slate-200 ml-15">Comprenez le sentiment de votre texte</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Input Section -->
+        <div class="sentiment-card bg-white rounded-2xl p-8 border border-slate-100">
+            <form id="sentimentForm" class="space-y-6">
+                <div>
+                    <label for="textInput" class="block text-sm font-semibold text-slate-800 mb-3">
+                        Text to Analyze
+                    </label>
+                    <textarea 
+                        id="textInput"
+                        name="text"
+                        rows="10"
+                        placeholder="Enter your text here... e.g., 'I absolutely love this product! It's amazing and exceeded my expectations.'"
+                        class="sentiment-input w-full px-5 py-4 border-2 border-slate-200 rounded-xl text-input-enhanced focus:border-purple-500 focus:outline-none resize-none text-slate-700 placeholder-slate-400 font-medium"
+                        required
+                    ></textarea>
+                </div>
+                <button 
+                    type="submit"
+                    class="w-full px-6 py-4 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 hover:shadow-lg transition-all font-semibold text-lg tracking-wide"
+                >
+                    Analyze Sentiment
+                </button>
+            </form>
+        </div>
+
+        <!-- Results Section -->
+        <div>
+            <!-- Loading State -->
+            <div id="loadingSpinner" class="hidden sentiment-card bg-white rounded-2xl border border-slate-100 p-12 text-center">
+                <div class="flex justify-center mb-6">
+                    <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-spin flex items-center justify-center">
+                        <div class="w-12 h-12 bg-white rounded-full"></div>
+                    </div>
+                </div>
+                <p class="text-slate-600 font-semibold text-lg">Analyzing sentiment...</p>
+
+            </div>
+
+            <!-- Results Container -->
+            <div id="resultsContainer" class="hidden space-y-5">
+                <!-- Sentiment Badge -->
+                <div id="sentimentBadge" class="sentiment-badge text-center space-y-4">
+                    <div class="flex justify-center" id="sentimentIcon"></div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Sentiment Result</p>
+                        <h3 id="sentimentLabel" class="text-4xl font-bold mt-2"></h3>
+                    </div>
+                    <div class="pt-2">
+                        <div class="score-bar h-3 mb-3 overflow-hidden">
+                            <div id="scoreBarFill" class="h-full transition-all duration-700 ease-out"></div>
+                        </div>
+                        <p id="scoreText" class="text-sm font-semibold text-slate-700"></p>
+                    </div>
+                </div>
+
+                <!-- Details -->
+                <div class="sentiment-card bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-100 p-8 space-y-4">
+                    <h4 class="font-bold text-lg text-slate-800">
+                        Analysis Details
+                    </h4>
+                    <div id="detailsContent" class="space-y-4"></div>
+                </div>
+
+                <!-- Action Buttons -->
+                <button 
+                    type="button"
+                    id="analyzeAnotherBtn"
+                    class="w-full px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-400 transition-all font-semibold"
+                >
+                    Analyze Another Text
+                </button>
+            </div>
+
+            <!-- Default Message -->
+            <div id="defaultMessage" class="sentiment-card bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
+                <p class="text-slate-600 font-semibold text-lg">Les résultats apparaîtront ici</p>
+            </div>
+        </div>
+    </div>
+</div>
+    </div>
+</div>
+
+<script>
+    const sentimentForm = document.getElementById('sentimentForm');
+    const textInput = document.getElementById('textInput');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const defaultMessage = document.getElementById('defaultMessage');
+    const analyzeAnotherBtn = document.getElementById('analyzeAnotherBtn');
+
+    const sentimentBadge = document.getElementById('sentimentBadge');
+    const sentimentIcon = document.getElementById('sentimentIcon');
+    const sentimentLabel = document.getElementById('sentimentLabel');
+    const scoreBar = document.getElementById('scoreBar');
+    const scoreBarFill = document.getElementById('scoreBarFill');
+    const scoreText = document.getElementById('scoreText');
+    const detailsContent = document.getElementById('detailsContent');
+
+    const sentimentColors = {
+        'positive': { color: 'bg-green-600', icon: '😊', label: 'Positive' },
+        'negative': { color: 'bg-red-600', icon: '😞', label: 'Negative' },
+        'neutral': { color: 'bg-gray-600', icon: '😐', label: 'Neutral' }
+    };
+
+    sentimentForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const text = textInput.value.trim();
+        if (!text) return;
+
+        loadingSpinner.classList.remove('hidden');
+        resultsContainer.classList.add('hidden');
+        defaultMessage.classList.add('hidden');
+
+        try {
+            const response = await fetch('/api/sentiment/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ text })
+            });
+
+            
+            const responseText = await response.text();
+
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
+                throw new Error('Server returned invalid JSON: ' + responseText.substring(0, 100));
+            }
+
+            if (response.ok) {
+                displayResults(data);
+            } else {
+                showError(data.error || 'Analysis failed');
+            }
+        } catch (error) {
+            showError(error.message || 'An error occurred during analysis');
+        } finally {
+            loadingSpinner.classList.add('hidden');
+        }
+    });
+
+    function displayResults(data) {
+        if (data.error) {
+            showError(data.error);
+            return;
+        }
+        
+        const sentiment = data.sentiment.toLowerCase();
+        const config = sentimentColors[sentiment] || sentimentColors['neutral'];
+        const score = (data.score * 100).toFixed(1);
+
+        // Update sentiment badge
+        sentimentIcon.innerHTML = `<div class="text-6xl animate-bounce">${config.icon}</div>`;
+        sentimentLabel.textContent = config.label;
+        sentimentLabel.className = `text-4xl font-bold mt-2 ${config.color === 'bg-green-600' ? 'text-green-600' : config.color === 'bg-red-600' ? 'text-red-600' : 'text-gray-600'}`;
+
+        // Update score bar
+            // scoreBarFill.className = `h-full ${config.color} transition-all duration-700 ease-out`;
+            // scoreBarFill.style.width = `${score}%`;
+            //  scoreText.textContent = `Confidence: ${score}%`;
+
+        // Update details
+        detailsContent.innerHTML = `
+            <div class="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
+                <div class="flex items-center gap-2">
+                    <span class="text-slate-700 font-medium">Sentiment Type</span>
+                </div>
+                <span class="font-bold ${config.color === 'bg-green-600' ? 'text-green-600' : config.color === 'bg-red-600' ? 'text-red-600' : 'text-gray-600'}">${config.label}</span>
+            </div>
+        `;
+
+        resultsContainer.classList.remove('hidden');
+    }
+
+    function showError(message) {
+        detailsContent.innerHTML = `<p class="text-red-600 font-medium">Error: ${message}</p>`;
+        resultsContainer.classList.remove('hidden');
+    }
+
+    analyzeAnotherBtn.addEventListener('click', () => {
+        textInput.value = '';
+        textInput.focus();
+        resultsContainer.classList.add('hidden');
+        defaultMessage.classList.remove('hidden');
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

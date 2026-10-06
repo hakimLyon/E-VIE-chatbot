@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}Object Detection - E-VIE{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detection-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    .detection-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+    }
+    .upload-area-enhanced {
+        border-radius: 16px;
+        border: 2px dashed rgba(102, 126, 234, 0.3);
+        transition: all 0.3s ease;
+        background: rgba(248, 250, 252, 1);
+    }
+    .upload-area-enhanced:hover {
+        background: rgba(240, 245, 255, 1);
+        border-color: rgba(102, 126, 234, 0.6);
+        transform: scale(1.01);
+    }
+    .upload-area-enhanced.active {
+        background: rgba(230, 235, 255, 1);
+        border-color: rgba(102, 126, 234, 1);
+    }
+    .detection-result-item {
+        animation: slideInUp 0.3s ease-out;
+    }
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    .preview-container {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen  py-12 px-4">
+    <div class="max-w-5xl mx-auto">
+        <div class="mb-12">
+            <div class="flex items-center gap-3 mb-3">
+                <h1 class="text-5xl font-bold text-slate-200">Détection des maladies</h1>
+            </div>
+            <p class="text-xl text-slate-200 ml-15">Téléchargez une image pour détecter et identifier les maladies grâce à une technologie d’IA avancée</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Upload Section -->
+        <div class="detection-card bg-white rounded-2xl border border-slate-100 p-8">
+            <form id="detectionForm" enctype="multipart/form-data" class="space-y-6">
+                <div id="uploadArea" class="upload-area-enhanced text-center cursor-pointer p-12 transition-all">
+                    <svg class="w-20 h-20 text-indigo-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Glissez & déposez votre image.</h3>
+                    <p class="text-slate-600 mb-6 font-medium">ou cliquez pour parcourir votre ordinateur</p>
+                    <input 
+                        type="file" 
+                        id="imageInput" 
+                        name="image" 
+                        accept="image/*" 
+                        class="hidden"
+                        required
+                    >
+                    <button 
+                        type="button" 
+                        id="browseBtn"
+                        class="px-8 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 hover:shadow-lg transition-all font-semibold"
+                    >
+                        Browse Files
+                    </button>
+                </div>
+
+                <!-- Image Preview -->
+                <div id="imagePreview" class="hidden space-y-4">
+                    <div class="preview-container">
+                        <img id="previewImg" src="" alt="Preview" class="w-full h-auto" />
+                    </div>
+                    <div class="flex gap-3 flex-col sm:flex-row">
+                        <button 
+                            type="button"
+                            id="changeImageBtn"
+                            class="flex-1 px-4 py-3 border-2 border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-400 transition-all font-semibold"
+                        >
+                            Change Image
+                        </button>
+                        <button 
+                            type="submit"
+                            id="detectBtn"
+                            class="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 hover:shadow-lg transition-all font-semibold"
+                        >
+                            Detect Objects
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Results Section -->
+        <div class="detection-card bg-white rounded-2xl border border-slate-100 p-8">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6">
+                Résultats de détection
+            </h2>
+            
+            <div id="loadingSpinner" class="hidden text-center py-12">
+                <div class="flex justify-center mb-6">
+                    <div class="w-16 h-16 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full animate-spin flex items-center justify-center">
+                        <div class="w-12 h-12 bg-white rounded-full"></div>
+                    </div>
+                </div>
+                <p class="text-slate-600 font-semibold text-lg">Analyzing image...</p>
+            </div>
+
+            <div id="resultsContainer" class="hidden space-y-5">
+                <div id="resultsList" class="space-y-3"></div>
+                <button 
+                    type="button"
+                    id="resetBtn"
+                    class="w-full px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-400 transition-all font-semibold"
+                >
+                    Detect Another Image
+                </button>
+            </div>
+
+            <div id="noResultsMessage" class="text-center py-16">
+                <p class="text-slate-600 font-semibold text-lg">Les résultats apparaîtront ici</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const imageInput = document.getElementById('imageInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const imagePreview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+    const browseBtn = document.getElementById('browseBtn');
+    const changeImageBtn = document.getElementById('changeImageBtn');
+    const detectBtn = document.getElementById('detectBtn');
+    const detectionForm = document.getElementById('detectionForm');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const resultsList = document.getElementById('resultsList');
+    const noResultsMessage = document.getElementById('noResultsMessage');
+    const resetBtn = document.getElementById('resetBtn');
+
+    // Browse button click
+    browseBtn.addEventListener('click', () => {
+        imageInput.click();
+    });
+
+    // File input change
+    imageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                previewImg.src = event.target.result;
+                uploadArea.classList.add('hidden');
+                imagePreview.classList.remove('hidden');
+                noResultsMessage.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Change image button
+    changeImageBtn.addEventListener('click', () => {
+        imageInput.click();
+    });
+
+    // Form submission
+    detectionForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(detectionForm);
+        
+        detectBtn.disabled = true;
+        loadingSpinner.classList.remove('hidden');
+        resultsContainer.classList.add('hidden');
+
+        try {
+            const response = await fetch('/api/detect/', {
+                method: 'POST',
+                body: formData,
+            });
+            
+            let data;
+            try {
+                data = await response.json();
+            } catch (jsonError) {
+                const text = await response.text();
+                throw new Error('Server returned invalid response: ' + text.substring(0, 100));
+            }
+            
+            if (response.ok) {
+                displayResults(data);
+            } else {
+                showError(data.error || 'Detection failed');
+            }
+        } catch (error) {
+            showError(error.message || 'An error occurred during detection');
+        } finally {
+            detectBtn.disabled = false;
+            loadingSpinner.classList.add('hidden');
+        }
+    });
+
+    function displayResults1(data) {
+        if (data.error) {
+            showError(data.error);
+            resultsList.innerHTML = '';
+            resultsContainer.classList.remove('hidden');
+            return;
+        }
+    
+        resultsList.innerHTML = '';
+        
+        if (data.objects && data.objects.length > 0) {
+            // Create a prominent badge for the main prediction (the diagnosis)
+            const mainResult = data.objects[0];
+            resultsList.innerHTML = `
+                <div class="detection-result-item p-6 bg-green-50 rounded-xl border-2 border-green-200 text-center shadow-sm">
+                    <p class="text-sm uppercase tracking-widest text-green-600 font-bold">Top Diagnosis</p>
+                    <h3 class="text-3xl font-black text-slate-800 mt-2">${mainResult}</h3>
+                </div>
+            `;
+            
+            // Optional: If you want to show other predictions (top 6) below the main one
+            if (data.objects.length > 1) {
+                const otherHeader = document.createElement('p');
+                otherHeader.className = "text-sm font-bold text-slate-500 mt-6 mb-2 uppercase";
+                otherHeader.innerText = "Other possibilities";
+                resultsList.appendChild(otherHeader);
+
+                for (let i = 1; i < data.objects.length; i++) {
+                    const div = document.createElement('div');
+                    div.className = 'p-3 bg-slate-50 rounded-lg border border-slate-200 mt-2';
+                    div.innerHTML = `<span class="text-slate-700">${data.objects[i]}</span>`;
+                    resultsList.appendChild(div);
+                }
+            }
+        } else {
+            resultsList.innerHTML = `
+                <div class="p-6 bg-yellow-50 rounded-xl border-2 border-yellow-200">
+                    <p class="text-yellow-800 font-semibold text-center">No disease detected in this image</p>
+                </div>`;
+        }
+        
+        resultsContainer.classList.remove('hidden');
+    }
+
+    function showError(message) {
+        resultsList.innerHTML = `<p class="text-red-600 font-medium">Error: ${message}</p>`;
+        resultsContainer.classList.remove('hidden');
+    }
+
+    function displayResults(data) {
+        if (data.error) {
+            showError(data.error);
+            resultsList.innerHTML = '';
+            resultsContainer.classList.remove('hidden');
+            return;
+        }
+
+        resultsList.innerHTML = '';
+        
+        // Use data.top_predictions based on your new output format
+        const predictions = data.top_predictions;
+
+        if (predictions && predictions.length > 0) {
+            const top = predictions[0];
+            const isBackground = top.label === 'Background_without_leaves';
+            
+            // 1. Create the Main Highlight Box
+            // 1. Create the Main Highlight Box (Now always green)
+            const mainBox = document.createElement('div');
+
+            // We use bg-green-50 and border-green-200 for everyone
+            mainBox.className = `detection-result-item p-6 rounded-xl border-2 text-center shadow-sm bg-green-50 border-green-200`;
+
+            mainBox.innerHTML = `
+                <p class="text-sm uppercase tracking-widest text-green-600 font-bold">
+                    ${isBackground ? 'Best Detection' : 'Top Diagnosis'}
+                </p>
+                <h3 class="text-3xl font-black text-slate-800 mt-2">
+                    ${top.label.replace(/_/g, ' ')}
+                </h3>
+                <p class="text-lg font-semibold mt-1 text-green-700">
+                    ${top.confidence.toFixed(1)}% Confidence
+                </p>
+            `;
+            resultsList.appendChild(mainBox);
+            
+            // 2. Display "Other Possibilities" if they exist
+            if (predictions.length > 1) {
+                const otherHeader = document.createElement('p');
+                otherHeader.className = "text-sm font-bold text-slate-400 mt-8 mb-3 uppercase tracking-wider";
+                otherHeader.innerText = "Alternative Matches";
+                resultsList.appendChild(otherHeader);
+
+                // Loop through the rest of the predictions
+                for (let i = 1; i < predictions.length; i++) {
+                    const pred = predictions[i];
+                    const row = document.createElement('div');
+                    row.className = 'flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100 mt-2 transition-hover hover:bg-white hover:shadow-sm';
+                    row.innerHTML = `
+                        <span class="text-slate-700 font-medium">${pred.label.replace(/_/g, ' ')}</span>
+                        <span class="text-slate-400 font-mono text-sm">${pred.confidence.toFixed(1)}%</span>
+                    `;
+                    resultsList.appendChild(row);
+                }
+            }
+        } else {
+            resultsList.innerHTML = `
+                <div class="p-6 bg-yellow-50 rounded-xl border-2 border-yellow-200 text-center">
+                    <p class="text-yellow-800 font-semibold">No data returned from analysis.</p>
+                </div>`;
+        }
+        
+        resultsContainer.classList.remove('hidden');
+    }
+
+    
+    // Reset button
+    resetBtn.addEventListener('click', () => {
+        detectionForm.reset();
+        imageInput.value = '';
+        uploadArea.classList.remove('hidden');
+        imagePreview.classList.add('hidden');
+        resultsContainer.classList.add('hidden');
+        noResultsMessage.classList.remove('hidden');
+    });
+</script>
+{% endblock %}

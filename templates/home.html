@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Home - E-VIE{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Hero Section -->
+    <div class="text-center mb-22">
+        <h1 class="text-5xl md:text-6xl font-bold text-slate-200 mb-6">
+            Plateforme d’IA E-Vie
+        </h1>
+        <p class="text-xl text-slate-200 mb-8 max-w-2xl mx-auto">
+            E-Vie est une plateforme intelligente qui aide les communautés à protéger la planète grâce à l’IA et à la connaissance environnementale.
+        </p>
+        <!-- <div class="flex gap-4 justify-center">
+            <a href="/chat/" class="px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 hover:border-slate-200 transition-colors font-medium">
+                Start Chatting
+            </a>
+            <a href="/detect/" class="px-8 py-3 border border-slate-200 text-slate-200 rounded-lg hover:bg-indigo-900 transition-colors font-medium">
+                Try Detection
+            </a>
+        </div> -->
+    </div>
+
+    <!-- Features Grid -->
+    <div class="grid grid-cols-1 mt-10 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+      
+
+        <!-- Feature 2: Object Detection -->
+        <div class="bg-white p-8 rounded-2xl border border-slate-200 hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer"
+             onclick="window.location.href='/detect/'">
+            <div class="w-24 h-24 rounded-2xl flex items-center justify-center mb-4 mx-auto overflow-hidden">
+                <img src="/static/images/spec.png" alt="Vision Detection" class="w-full h-full object-cover">
+            </div>
+            <h3 class="text-lg font-semibold mb-2 text-center">Détection des maladies</h3>
+            <p class="text-slate-600 text-sm text-center">
+                Détection des maladies dans les feuilles des plantes.
+            </p>
+        </div>
+
+        <!-- Feature 3: Sentiment Analysis -->
+        <div class="bg-white p-8 rounded-2xl border border-slate-200 hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer"
+             onclick="window.location.href='/sentiment/'">
+            <div class="w-24 h-24 rounded-2xl flex items-center justify-center mb-4 mx-auto overflow-hidden">
+                <img src="/static/images/tiger.png" alt="Sentiment Analysis" class="w-full h-full object-cover">
+            </div>
+            <h3 class="text-lg font-semibold mb-2 text-center">Analyse des sentiments</h3>
+            <p class="text-slate-600 text-sm text-center">
+                Détection des sentiments dans  les textes.
+            </p>
+        </div>
+
+          <!-- Feature 1: Chatbot -->
+        <div class="bg-white p-8 rounded-2xl border border-slate-200 hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer"
+             onclick="window.location.href='/chat/'">
+            <div class="w-24 h-24 rounded-2xl flex items-center justify-center mb-4 mx-auto overflow-hidden">
+                <img src="/static/images/robot.png" alt="Chat Assistant" class="w-full h-full object-cover">
+            </div>
+            <h3 class="text-lg font-semibold mb-2 text-center">Chat Assistant</h3>
+            <p class="text-slate-600 text-sm text-center">
+               Assistant IA disponible 24/7.
+            </p>
+        </div>
+
+        <!-- Feature 4: Analytics
+        <div class="bg-white p-8 rounded-2xl border border-slate-200 hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer">
+            <div class="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-4 mx-auto">
+                <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4v2m0-6l3-3m0 0V7m0 0H9m3-3H9"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold mb-2 text-center">Intelligence Hub</h3>
+            <p class="text-slate-600 text-sm text-center">
+                Track and analyze your usage with detailed insights and statistics.
+            </p>
+        </div> -->
+    </div>
+
+    <!-- CTA Section
+    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-12 text-center text-white">
+        <h2 class="text-3xl font-bold mb-4">Ready to get started?</h2>
+        <p class="text-lg opacity-90 mb-6 max-w-2xl mx-auto">
+            Choose any of our AI tools above to begin your journey with advanced artificial intelligence capabilities.
+        </p>
+        <a href="/chat/" class="inline-block px-8 py-3 bg-white text-indigo-600 rounded-lg hover:bg-slate-100 transition-colors font-medium">
+            Get Started Now
+        </a>
+    </div> -->
+</div>
+{% endblock %}
