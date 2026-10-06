@@ -4,15 +4,21 @@ import os
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from core.services.rag.llm_backend import get_llm
+from core.services.rag.llm_backend import get_llm, get_rewrite_llm
 from core.services.rag.retrieval import get_retriever
 
 HISTORY_TURNS = int(os.getenv("RAG_HISTORY_TURNS", "6"))
 
-REWRITE_SYSTEM = """Réécris la dernière question de l'utilisateur pour qu'elle soit compréhensible
-seule, sans l'historique de la conversation. Garde la langue de l'utilisateur.
+REWRITE_SYSTEM = """Tu reformules des questions, tu n'y réponds jamais.
+Réécris le dernier message de l'utilisateur pour qu'il soit compréhensible seul, sans
+l'historique de la conversation, en gardant sa langue et sa forme de question.
 Si le message n'est pas une question (salutation, remerciement...), renvoie-le tel quel.
-Renvoie UNIQUEMENT la question réécrite."""
+Renvoie UNIQUEMENT la question réécrite, sans explication.
+
+Exemple :
+Historique : "Qu'est-ce que le droit à un environnement sain ?" / "C'est le droit à un air pur..."
+Message : "Et les écoles, quel est leur rôle ?"
+Réponse : Quel est le rôle des écoles dans le droit à un environnement sain ?"""
 
 ANSWER_SYSTEM = """Tu es E-VIE, l'assistant d'une plateforme sur la protection de l'environnement.
 Tu réponds toujours en français, sauf si l'utilisateur écrit clairement dans une autre langue.
@@ -49,7 +55,7 @@ def ask_question(question, history=None):
             + _history_messages(history)
             + [HumanMessage(content=question)]
         )
-        standalone_question = llm.invoke(rewrite_messages).content.strip() or question
+        standalone_question = get_rewrite_llm().invoke(rewrite_messages).content.strip() or question
     else:
         standalone_question = question
 

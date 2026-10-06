@@ -12,7 +12,10 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "")
 CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
-CF_AI_CHAT_MODEL = os.getenv("CF_AI_CHAT_MODEL", "@cf/zai-org/glm-4.7-flash")
+CF_AI_CHAT_MODEL = os.getenv("CF_AI_CHAT_MODEL", "@cf/zai-org/glm-5.3-flash")
+# Small fast model for the question-rewrite step (GLM-4.7 without thinking follows
+# the "rewrite, do not answer" instruction far better than Llama 8B).
+CF_AI_REWRITE_MODEL = os.getenv("CF_AI_REWRITE_MODEL", "@cf/zai-org/glm-4.7-flash")
 CF_AI_EMBED_MODEL = os.getenv("CF_AI_EMBED_MODEL", "@cf/baai/bge-m3")
 
 
@@ -24,23 +27,39 @@ def _base_url():
     return f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/v1"
 
 
-@lru_cache(maxsize=1)
-def get_llm():
+def _chat_client(model, max_tokens):
     extra_body = {}
-    # GLM models reason before answering by default; for a RAG chat that only
-    # adds 10-20s of latency and can eat the whole token budget (empty answer).
-    if "/glm-" in CF_AI_CHAT_MODEL:
+    # GLM models reason before answering; for a RAG chat that adds 10-30s and the
+    # reasoning tokens count against max_tokens (an empty answer when exhausted).
+    # GLM-4 honours the vLLM flag, GLM-5 only the Z.ai-style hint (it still
+    # thinks a little, but far less).
+    if "/glm-4" in model:
         extra_body["chat_template_kwargs"] = {"enable_thinking": False}
+    elif "/glm-5" in model:
+        extra_body["thinking"] = {"type": "disabled"}
+        max_tokens = max(max_tokens, 1500)
     return ChatOpenAI(
-        model=CF_AI_CHAT_MODEL,
+        model=model,
         base_url=_base_url(),
         api_key=CF_API_TOKEN,
         temperature=0.2,
-        max_tokens=800,
+        max_tokens=max_tokens,
         timeout=120,
         max_retries=2,
         extra_body=extra_body or None,
     )
+
+
+@lru_cache(maxsize=1)
+def get_llm():
+    """Model that writes the final answer."""
+    return _chat_client(CF_AI_CHAT_MODEL, 800)
+
+
+@lru_cache(maxsize=1)
+def get_rewrite_llm():
+    """Model that turns a follow-up into a standalone question."""
+    return _chat_client(CF_AI_REWRITE_MODEL, 200)
 
 
 @lru_cache(maxsize=1)
