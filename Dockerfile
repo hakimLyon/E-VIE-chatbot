@@ -31,7 +31,9 @@ RUN SECRET_KEY=build DEBUG=False python manage.py collectstatic --noinput \
 VOLUME ["/data"]
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+# Probe often so Docker flips to "healthy" right after gunicorn is up; the long
+# start period covers the first-boot PDF ingestion (~2 min) before that.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=240s --retries=3 \
   CMD curl -fsS http://127.0.0.1:8000/ > /dev/null || exit 1
 
 ENTRYPOINT ["docker/entrypoint.sh"]
