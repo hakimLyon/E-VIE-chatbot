@@ -1,6 +1,7 @@
 # pipelines/rag_chat.py
 
 import os
+import re
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
@@ -24,9 +25,10 @@ ANSWER_SYSTEM = """Tu es E-VIE, l'assistant d'une plateforme sur la protection d
 Tu réponds toujours en français, sauf si l'utilisateur écrit clairement dans une autre langue.
 
 Règles :
-1. Si le message est une salutation ou une simple conversation (bonjour, merci, ça va...),
-   réponds brièvement et chaleureusement, présente-toi en une phrase et propose ton aide
-   sur l'environnement. N'utilise pas le contexte dans ce cas.
+1. Si le message est une salutation ou une simple conversation (bonjour, merci, ok, ça va...),
+   réponds brièvement et chaleureusement. Présente-toi en une phrase seulement si c'est le
+   premier message de la conversation ; ensuite, ne répète pas ta présentation : un simple
+   « ok » ou « merci » appelle une courte phrase et une proposition de continuer.
 2. Si le contexte fourni permet de répondre, réponds en t'appuyant UNIQUEMENT sur lui,
    de façon claire et structurée.
 3. Si le contexte ne permet pas de répondre, dis-le en une phrase, sans inventer, et propose
@@ -40,8 +42,20 @@ def _history_messages(history):
     messages = []
     for question, answer in history[-HISTORY_TURNS:]:
         messages.append(HumanMessage(content=question))
-        messages.append(AIMessage(content=answer))
+        messages.append(AIMessage(content=answer[:1500]))
     return messages
+
+
+_SMALL_TALK = re.compile(
+    r"^(ok(ay)?|d'accord|merci( beaucoup)?|super|parfait|bonjour|bonsoir|salut|hello|hi|hey|"
+    r"ça va( \?)?|ca va( \?)?|oui|non|au revoir|bye|à bientôt|a bientot|cool|top|bien)[ !.]*$",
+    re.IGNORECASE,
+)
+
+
+def is_small_talk(message):
+    """Greetings and acknowledgements: no point searching the PDFs for them."""
+    return bool(_SMALL_TALK.match(message.strip()))
 
 
 def ask_question(question, history=None):
@@ -60,8 +74,11 @@ def ask_question(question, history=None):
         standalone_question = question
 
     # -------- Retrieve documents --------
-    docs = get_retriever().invoke(standalone_question)
-    context = "\n\n".join(doc.page_content for doc in docs)
+    if is_small_talk(question):
+        context = "(aucun : message conversationnel, réponds sans documents)"
+    else:
+        docs = get_retriever().invoke(standalone_question)
+        context = "\n\n".join(doc.page_content for doc in docs)
 
     # -------- Answer --------
     prompt = f"""Contexte :
@@ -70,5 +87,11 @@ def ask_question(question, history=None):
 Message de l'utilisateur :
 {question}"""
 
-    messages = [SystemMessage(content=ANSWER_SYSTEM), HumanMessage(content=prompt)]
+    # The answer model also sees the recent exchanges, so it knows what it already
+    # said (no repeated introductions) and can keep the thread coherent.
+    messages = (
+        [SystemMessage(content=ANSWER_SYSTEM)]
+        + _history_messages(history)
+        + [HumanMessage(content=prompt)]
+    )
     return llm.invoke(messages).content.strip()

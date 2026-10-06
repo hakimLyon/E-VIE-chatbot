@@ -46,6 +46,18 @@
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.4/purify.min.js"></script>
+<style>
+    .chat-markdown p { margin: 0 0 0.5rem; }
+    .chat-markdown p:last-child { margin-bottom: 0; }
+    .chat-markdown ul, .chat-markdown ol { margin: 0.25rem 0 0.5rem 1.25rem; }
+    .chat-markdown ul { list-style: disc; }
+    .chat-markdown ol { list-style: decimal; }
+    .chat-markdown li { margin: 0.15rem 0; }
+    .chat-markdown h1, .chat-markdown h2, .chat-markdown h3 { font-weight: 600; margin: 0.5rem 0 0.25rem; }
+    .chat-markdown code { background: #e2e8f0; padding: 0 0.25rem; border-radius: 0.25rem; }
+</style>
 <script>
     const chatForm = document.getElementById('chatForm');
     const messageInput = document.getElementById('messageInput');
@@ -62,7 +74,13 @@
                 ? 'bg-indigo-600 text-white rounded-br-none shadow-md' 
                 : 'bg-slate-100 border border-slate-300 text-slate-900 rounded-bl-none'
         }`;
-        messageBubble.textContent = text;
+        if (isUser) {
+            messageBubble.textContent = text;
+        } else {
+            // Assistant answers come back as Markdown; render it, but never trust raw HTML.
+            messageBubble.className += ' chat-markdown';
+            messageBubble.innerHTML = DOMPurify.sanitize(marked.parse(text, { breaks: true }));
+        }
         
         messageDiv.appendChild(messageBubble);
         chatMessages.appendChild(messageDiv);
