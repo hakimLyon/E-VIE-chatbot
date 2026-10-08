@@ -11,6 +11,8 @@ db.sqlite3
 staticfiles/
 media/
 db/chroma_db/
+chroma_*/
+.ingest.lock
 data/
 .hf/
 

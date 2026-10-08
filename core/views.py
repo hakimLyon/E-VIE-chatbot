@@ -34,9 +34,10 @@ def sentiment_analysis(request):
 
 @require_http_methods(["GET"])
 def chatbot(request):
-    """Chatbot page view."""
-    recent_chats = ChatMessage.objects.all()[:10]
-    return render(request, 'chatbot.html', {'recent_chats': recent_chats})
+    """Chatbot page view. Opening the page starts a new conversation: the page shows no
+    earlier messages, so the assistant must not answer from them either."""
+    request.session.pop("chat_history", None)
+    return render(request, 'chatbot.html')
 
 
 # API Views
