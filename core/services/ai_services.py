@@ -255,7 +255,7 @@ rag_initialized = False
 
 
 def rag_query(question, history=None):
-    """Answer a question from the PDF knowledge base.
+    """Answer a question from the PDF knowledge base: {"answer": ..., "sources": [...]}.
 
     `history` is the list of [question, answer] pairs of the current user session,
     so follow-up questions can be rewritten into standalone ones.

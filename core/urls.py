@@ -15,6 +15,7 @@ urlpatterns = [
     #path("sentiment/", views.sentiment_analysis, name="sentiment_analysis"),
     path('sentiment/', views.sentiment_page, name='sentiment_analysis'),
     path('chat/', views.chatbot, name='chatbot'),
+    path('documents/<str:filename>', views.document_file, name='document_file'),
 ]
 
 

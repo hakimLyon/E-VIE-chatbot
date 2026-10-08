@@ -3,13 +3,14 @@
 {% block title %}Chatbot - E-VIE{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
+<div class="max-w-6xl mx-auto">
     <div class="mb-8">
         <h1 class="text-4xl font-bold mb-2">Chatbot</h1>
         <p class="text-slate-200 text-xl ">Discutez avec notre assistant IA pour obtenir des réponses et une assistance instantanées.</p>
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden flex flex-col h-[600px]">
+    <div class="grid gap-6 lg:grid-cols-3">
+    <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden flex flex-col h-[600px]">
         <!-- Chat Messages -->
         <div id="chatMessages" class="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-slate-50 to-white">
             <div class="flex-row flex-wrap text-center py-8">
@@ -44,6 +45,24 @@
             </form>
         </div>
     </div>
+
+    <!-- Knowledge base: what the assistant answers from -->
+    <aside class="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden flex flex-col lg:h-[600px]">
+        <div class="px-5 py-4 border-b border-slate-200">
+            <h2 class="text-lg font-semibold text-slate-900">Documents de la base</h2>
+            <p class="text-sm text-slate-500">{{ documents|length }} documents · chaque réponse cite ses sources</p>
+        </div>
+        <ul class="flex-1 overflow-y-auto divide-y divide-slate-100">
+            {% for doc in documents %}
+            <li class="px-5 py-3">
+                <a href="{{ doc.url }}" target="_blank" rel="noopener" class="font-medium text-indigo-700 hover:underline">{{ doc.title }}</a>
+                <p class="text-xs text-slate-500 mt-0.5">{{ doc.publisher }}{% if doc.year %} · {{ doc.year }}{% endif %} · {{ doc.pages }} p.{% if doc.language %} · {{ doc.language|upper }}{% endif %}</p>
+                {% if doc.summary %}<p class="text-sm text-slate-600 mt-1">{{ doc.summary }}</p>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </aside>
+    </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
@@ -64,7 +83,28 @@
     const sendBtn = document.getElementById('sendBtn');
     const chatMessages = document.getElementById('chatMessages');
 
-    function addMessage(text, isUser) {
+    // Pages the answer was written from, as links that open the PDF at that page.
+    function addSources(bubble, sources) {
+        if (!sources || !sources.length) return;
+        const box = document.createElement('div');
+        box.className = 'mt-3 pt-2 border-t border-slate-300 text-xs';
+        const label = document.createElement('p');
+        label.className = 'font-semibold text-slate-600 mb-1';
+        label.textContent = 'Sources';
+        box.appendChild(label);
+        for (const source of sources) {
+            const link = document.createElement('a');
+            link.href = source.url;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.className = 'block text-indigo-700 hover:underline';
+            link.textContent = `📄 ${source.title} — p. ${source.page}`;
+            box.appendChild(link);
+        }
+        bubble.appendChild(box);
+    }
+
+    function addMessage(text, isUser, sources) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
         
@@ -80,6 +120,7 @@
             // Assistant answers come back as Markdown; render it, but never trust raw HTML.
             messageBubble.className += ' chat-markdown';
             messageBubble.innerHTML = DOMPurify.sanitize(marked.parse(text, { breaks: true }));
+            addSources(messageBubble, sources);
         }
         
         messageDiv.appendChild(messageBubble);
@@ -141,9 +182,9 @@
             removeTypingIndicator();
 
             if (response.ok) {
-                addMessage(data.response, false);
+                addMessage(data.response, false, data.sources);
             } else {
-                addMessage('Désolé, une erreur est survenue. Veuillez réessayer.', false);
+                addMessage(data.response || 'Désolé, une erreur est survenue. Veuillez réessayer.', false);
             }
         } catch (error) {
             removeTypingIndicator();

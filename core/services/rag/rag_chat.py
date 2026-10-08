@@ -5,10 +5,12 @@ import re
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
+from core.services.rag.catalog import source
 from core.services.rag.llm_backend import get_llm, get_rewrite_llm
 from core.services.rag.retrieval import search
 
 HISTORY_TURNS = int(os.getenv("RAG_HISTORY_TURNS", "6"))
+MAX_SOURCES = 3
 
 LANGUAGE_NAMES = {"fr": "French", "en": "English"}
 # The reply language goes last and in that language: the model follows it far more
@@ -31,6 +33,10 @@ UNCLEAR_REPLY = {
           "protection de l'environnement ?",
     "en": "Sorry, I didn't quite understand your message. What would you like to know "
           "about environmental protection?",
+}
+SERVICE_BUSY_REPLY = {
+    "fr": "Le service d'intelligence artificielle met trop de temps à répondre. Veuillez réessayer dans un instant.",
+    "en": "The AI service is taking too long to respond. Please try again in a moment.",
 }
 NO_DOCUMENTS_REPLY = {
     "fr": "Je n'ai pas trouvé d'information sur ce sujet dans nos documents. Je peux vous "
@@ -79,7 +85,8 @@ _SMALL_TALK = re.compile(
     r"^(ok(ay)?|d'accord|merci( beaucoup)?|thanks?( a lot)?|thank you( very much)?|super|"
     r"parfait|génial|bonjour|bonsoir|salut|coucou|hello|hi|hey|ça va|ca va|how are you|"
     r"au revoir|bye|goodbye|à bientôt|a bientot|cool|top|bien|nice|great|good|lol|mdr|haha|"
-    r"qui es[- ]tu|who are you|que peux[- ]tu faire|what can you do|aide|help)[\s!.?]*$",
+    r"qui es[- ]tu|who are you|que peux[- ]tu faire|what can you do|aide|help|"
+    r"test(ing)?( ?\d+)?)[\s!.?]*$",
     re.IGNORECASE,
 )
 # Replies to an offer the assistant ended its answer with ("Voulez-vous des exemples ?").
@@ -212,23 +219,24 @@ def _small_talk_reply(question, history, language):
 
 
 def ask_question(question, history=None):
+    """{"answer": text, "sources": pages the answer was written from (may be empty)}."""
     history = history or []
     language = conversation_language(question, history)
     kind = route(question, history)
 
     if kind == "unclear":
-        return UNCLEAR_REPLY[language]
+        return {"answer": UNCLEAR_REPLY[language], "sources": []}
 
     # "oui" to an offer: search for what was offered. Phrased as a request, because the
     # rewrite model reads a bare "Would you like more details?" as asking for nothing.
     to_search = f"Yes, tell me more: {_offer(history)}" if _ACCEPT.match(question.strip()) else question
     query = search_query(to_search, history) if kind == "question" else None
     if query is None:  # small talk, or a message the rewrite model says asks for nothing
-        return _small_talk_reply(question, history, language)
+        return {"answer": _small_talk_reply(question, history, language), "sources": []}
 
     docs = search(query)
     if not docs:
-        return NO_DOCUMENTS_REPLY[language]
+        return {"answer": NO_DOCUMENTS_REPLY[language], "sources": []}
 
     context = "\n\n---\n\n".join(doc.page_content for doc in docs)
     prompt = (
@@ -242,4 +250,11 @@ def ask_question(question, history=None):
         + _history_messages(history)
         + [HumanMessage(content=prompt)]
     )
-    return get_llm().invoke(messages).content.strip()
+    answer = get_llm().invoke(messages).content.strip()
+
+    pages = []
+    for doc in docs:  # best passages first
+        page = (doc.metadata["source"], doc.metadata["page"])
+        if page not in pages:
+            pages.append(page)
+    return {"answer": answer, "sources": [source(*page) for page in pages[:MAX_SOURCES]]}

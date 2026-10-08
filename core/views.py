@@ -1,6 +1,7 @@
 """Views for Aura AI application."""
 
 from django.conf import settings
+from django.http import FileResponse, Http404
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
@@ -9,6 +10,9 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .models import ChatMessage, DetectionResult, SentimentAnalysis
+from .services.rag.catalog import documents
+from .services.rag.rag_chat import SERVICE_BUSY_REPLY, conversation_language
+from .services.rag.retrieval import DOCS_PATH
 #from .services import AIService
 import json
 
@@ -37,7 +41,18 @@ def chatbot(request):
     """Chatbot page view. Opening the page starts a new conversation: the page shows no
     earlier messages, so the assistant must not answer from them either."""
     request.session.pop("chat_history", None)
-    return render(request, 'chatbot.html')
+    return render(request, 'chatbot.html', {'documents': documents()})
+
+
+@require_http_methods(["GET"])
+def document_file(request, filename):
+    """A PDF of the knowledge base, so citations can open it at the cited page."""
+    path = DOCS_PATH / filename
+    if path.suffix != ".pdf" or path.name != filename or not path.is_file():
+        raise Http404("Document not found")
+    response = FileResponse(open(path, "rb"), content_type="application/pdf", filename=filename)
+    response["Cache-Control"] = "public, max-age=86400"
+    return response
 
 
 # API Views
@@ -361,13 +376,15 @@ def chat_api(request):
     history = request.session.get("chat_history", [])
 
     try:
-        response = rag_query(user_message, history)
+        reply = rag_query(user_message, history)
     except Exception as e:
-        return JsonResponse({"error": f"Chat error: {e}"}, status=500)
+        # Usually Workers AI being slow or unavailable: say so in the user's language.
+        language = conversation_language(user_message, history)
+        return JsonResponse({"error": f"Chat error: {e}", "response": SERVICE_BUSY_REPLY[language]}, status=503)
 
-    history.append([user_message, response])
+    history.append([user_message, reply["answer"]])
     request.session["chat_history"] = history[-settings.RAG_HISTORY_TURNS:]
 
-    ChatMessage.objects.create(message=user_message, response=response)
+    ChatMessage.objects.create(message=user_message, response=reply["answer"])
 
-    return JsonResponse({"response": response})
+    return JsonResponse({"response": reply["answer"], "sources": reply["sources"]})
