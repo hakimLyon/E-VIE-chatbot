@@ -10,7 +10,10 @@ from core.services.rag.retrieval import search
 
 HISTORY_TURNS = int(os.getenv("RAG_HISTORY_TURNS", "6"))
 
-LANGUAGE_NAMES = {"fr": "français", "en": "English"}
+LANGUAGE_NAMES = {"fr": "French", "en": "English"}
+# The reply language goes last and in that language: the model follows it far more
+# reliably there than in a French system prompt placed before the excerpts.
+REPLY_IN = {"fr": "Répondez en français, en vouvoyant.", "en": "Reply in English."}
 
 TOPICS = {
     "fr": "la protection de l'environnement, le droit à un environnement sain, le lien entre "
@@ -42,33 +45,35 @@ NO_DOCUMENTS_REPLY = {
 SEARCH_QUERY_SYSTEM = """You turn the user's last message into a search query for English documents.
 Write it as one standalone question in English. Use the conversation only to resolve a
 genuine follow-up (pronouns, "and ...?", "why?", "yes"). If the message is a new topic,
-translate it on its own and do not mix in the earlier topic. Never answer it.
-Return only the English question.
+translate it on its own and do not mix in the earlier topic. If it asks for nothing
+(thanks, agreement, a reaction such as "oh i see"), reply exactly NONE. Never answer it.
+Reply with the question or NONE only, without any label.
 
-Examples:
-Conversation: "Qu'est-ce que le droit à un environnement sain ?" / "C'est le droit à un air pur..."
-Message: "Et les écoles, quel est leur rôle ?"
-Query: What is the role of schools in the right to a healthy environment?
-Message: "cuisine"
-Query: What is cooking?"""
+Examples (message -> reply):
+"Et les écoles, quel est leur rôle ?", after a question on the right to a healthy
+environment -> What is the role of schools in the right to a healthy environment?
+"cuisine" -> What is cooking?
+"oui", after the assistant asked "Voulez-vous des exemples concrets de gestion des
+déchets ?" -> What are concrete examples of waste management?
+"ah je vois, merci" -> NONE"""
 
-ANSWER_SYSTEM = """Tu es E-VIE, l'assistant d'une plateforme sur la protection de l'environnement.
+ANSWER_SYSTEM = """You are E-VIE, the assistant of a platform about environmental protection.
 
-Règles :
-- Réponds dans la langue indiquée par la ligne « Langue de réponse ». En français, vouvoie.
-- Appuie-toi uniquement sur les extraits fournis, sans rien inventer. S'ils ne couvrent
-  qu'une partie de la question, réponds à cette partie et dis ce qui manque.
-- Ne parle jamais d'« extraits », de « contexte » ni de « documents fournis » : présente
-  l'information directement (au besoin, dis « d'après nos documents »).
-- Sois clair et structuré (listes, gras) sans être plus long que nécessaire."""
+Rules:
+- Write the whole reply in the language required by the last line of the message.
+- Rely only on the excerpts provided and invent nothing. If they cover only part of the
+  question, answer that part and say what is missing.
+- Never mention "excerpts", "context" or "provided documents": present the information
+  directly (if needed, say "according to our documents" / "d'après nos documents").
+- Be clear and structured (lists, bold) without being longer than needed."""
 
-SMALL_TALK_SYSTEM = f"""Tu es E-VIE, l'assistant d'une plateforme sur la protection de
-l'environnement. Tu peux aider sur : {TOPICS['fr']}.
+SMALL_TALK_SYSTEM = f"""You are E-VIE, the assistant of a platform about environmental protection.
+You can help with: {TOPICS['en']}.
 
-Le dernier message est une formule de politesse, une salutation ou une question sur toi.
-Réponds en une ou deux phrases, dans la langue indiquée par la ligne « Langue de réponse »
-(en français, vouvoie). Présente-toi seulement si la conversation commence ; sinon ne
-répète pas ta présentation. Termine en proposant ton aide."""
+The user's last message is a courtesy, a greeting, a reaction or a question about you.
+Reply in one or two sentences, in the language required by the last line of the message.
+Introduce yourself only if the conversation is starting; otherwise do not repeat your
+introduction. End by offering your help."""
 
 _SMALL_TALK = re.compile(
     r"^(ok(ay)?|d'accord|merci( beaucoup)?|thanks?( a lot)?|thank you( very much)?|super|"
@@ -77,8 +82,22 @@ _SMALL_TALK = re.compile(
     r"qui es[- ]tu|who are you|que peux[- ]tu faire|what can you do|aide|help)[\s!.?]*$",
     re.IGNORECASE,
 )
-# Answers to a question the assistant just asked: small talk only when nothing precedes.
-_YES_NO = re.compile(r"^(oui|non|yes|no)[\s!.?]*$", re.IGNORECASE)
+# Replies to an offer the assistant ended its answer with ("Voulez-vous des exemples ?").
+_ACCEPT = re.compile(
+    r"^(oui|yes|yeah|yep|sure|volontiers)( (please|merci|svp|s'il vous plaît))?[\s!.]*$", re.IGNORECASE
+)
+_DECLINE = re.compile(r"^(non|no|nope)( (merci|thanks|thank you))?[\s!.]*$", re.IGNORECASE)
+# Words of messages that only acknowledge or react, however they are phrased:
+# "oh i see", "ok merci", "got it", "c'est noté", "great, thanks!".
+_ACKNOWLEDGEMENT_WORDS = set(
+    "oh ah eh hmm hm ok okay okk d accord daccord merci beaucoup bien très tres bon super "
+    "parfait génial genial top cool nice great good wow waouh i see je vois got it understood "
+    "compris noté note c est ça ca makes sense thanks thank you so alright all right sure yeah "
+    "yep yes oui non no nope entendu intéressant interessant interesting excellent bravo lol "
+    "mdr haha".split()
+)
+# Labels the rewrite model sometimes copies from the examples ("Query:", "->").
+_LABEL = re.compile(r"^\s*(->|→|query\s*:|output\s*:|requête\s*:|requete\s*:)\s*", re.IGNORECASE)
 # The rewrite model sometimes answers the user instead of rewriting the message.
 _NOT_A_QUERY = re.compile(
     r"^(je ne|désolé|desole|pardon|merci|i'm sorry|i am sorry|i (do not|don't|cannot|can't)|"
@@ -119,11 +138,30 @@ def conversation_language(question, history):
     return "fr"
 
 
+def _offer(history):
+    """The question the assistant ended its last answer with, if any."""
+    if not history:
+        return None
+    last_sentence = re.split(r"(?<=[.!?])\s+", history[-1][1].strip())[-1]
+    return last_sentence if last_sentence.endswith("?") else None
+
+
+def is_acknowledgement(text):
+    """True when the message asks for nothing: no question mark, and nothing but
+    interjections and politeness words."""
+    if "?" in text:
+        return False
+    words = re.findall(r"[a-zàâäçéèêëîïôöùûüÿœ]+", text.lower())
+    return bool(words) and all(word in _ACKNOWLEDGEMENT_WORDS for word in words)
+
+
 def route(question, history):
     """'small_talk', 'unclear' or 'question'. Deciding from the message itself is as good
     as asking a model (see the adaptive-retrieval studies) and costs nothing."""
     text = question.strip()
-    if _SMALL_TALK.match(text) or (_YES_NO.match(text) and not history):
+    if _ACCEPT.match(text):
+        return "question" if _offer(history) else "small_talk"
+    if _DECLINE.match(text) or _SMALL_TALK.match(text) or is_acknowledgement(text):
         return "small_talk"
     if not re.search(r"[^\W\d_]{3,}", text):  # no word of 3 letters or more: "ko", "?", "a b"
         return "unclear"
@@ -140,19 +178,37 @@ def _history_messages(history):
 
 
 def search_query(question, history):
-    """The message as a standalone English question, or the message itself when the
-    rewrite fails or looks wrong (an answer, an apology, a long text)."""
+    """The message as a standalone English question; None when it asks for nothing
+    (the rewrite model says NONE); the message itself when the rewrite fails or looks
+    wrong (an answer, an apology, a long text)."""
     try:
         query = get_rewrite_llm().invoke(
             [SystemMessage(content=SEARCH_QUERY_SYSTEM)]
             + _history_messages(history[-3:])
             + [HumanMessage(content=question)]
-        ).content.strip().strip('"«» ')
+        ).content.strip()
     except Exception:
         return question
+    query = _LABEL.sub("", query).strip().strip('"«» ')
+    if query.upper().rstrip(".!") == "NONE":
+        return None
     if not query or _NOT_A_QUERY.match(query) or len(query) > 3 * len(question) + 150:
         return question
     return query
+
+
+def _small_talk_reply(question, history, language):
+    prompt = (
+        f"Conversation starting: {'no' if history else 'yes'}\n\n"
+        f"Message:\n{question}\n\n"
+        f"{REPLY_IN[language]}"
+    )
+    messages = (
+        [SystemMessage(content=SMALL_TALK_SYSTEM)]
+        + _history_messages(history)
+        + [HumanMessage(content=prompt)]
+    )
+    return get_llm().invoke(messages).content.strip()
 
 
 def ask_question(question, history=None):
@@ -163,28 +219,22 @@ def ask_question(question, history=None):
     if kind == "unclear":
         return UNCLEAR_REPLY[language]
 
-    if kind == "small_talk":
-        prompt = (
-            f"Langue de réponse : {LANGUAGE_NAMES[language]}\n"
-            f"Début de conversation : {'non' if history else 'oui'}\n\n"
-            f"Message de l'utilisateur :\n{question}"
-        )
-        messages = (
-            [SystemMessage(content=SMALL_TALK_SYSTEM)]
-            + _history_messages(history)
-            + [HumanMessage(content=prompt)]
-        )
-        return get_llm().invoke(messages).content.strip()
+    # "oui" to an offer: search for what was offered. Phrased as a request, because the
+    # rewrite model reads a bare "Would you like more details?" as asking for nothing.
+    to_search = f"Yes, tell me more: {_offer(history)}" if _ACCEPT.match(question.strip()) else question
+    query = search_query(to_search, history) if kind == "question" else None
+    if query is None:  # small talk, or a message the rewrite model says asks for nothing
+        return _small_talk_reply(question, history, language)
 
-    docs = search(search_query(question, history))
+    docs = search(query)
     if not docs:
         return NO_DOCUMENTS_REPLY[language]
 
     context = "\n\n---\n\n".join(doc.page_content for doc in docs)
     prompt = (
-        f"Extraits :\n{context}\n\n"
-        f"Langue de réponse : {LANGUAGE_NAMES[language]}\n\n"
-        f"Message de l'utilisateur :\n{question}"
+        f"Excerpts:\n{context}\n\n"
+        f"Message:\n{question}\n\n"
+        f"{REPLY_IN[language]}"
     )
     # The answer model also sees the recent exchanges, so it can keep the thread coherent.
     messages = (
