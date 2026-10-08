@@ -1,0 +1,222 @@
+{
+  "questions": [
+    {
+      "question": "Comment la protection de l'environnement et l'utilisation durable des ressources naturelles peuvent-elles aider à diminuer les risques liés aux catastrophes naturelles ?",
+      "language": "fr",
+      "source": "8547_environmentalprotectionschool1.pdf",
+      "page": 22
+    },
+    {
+      "question": "Où peut-on trouver des ressources en ligne sur la gestion des catastrophes et la conservation de la faune en Afrique ?",
+      "language": "fr",
+      "source": "8547_environmentalprotectionschool1.pdf",
+      "page": 51
+    },
+    {
+      "question": "Quels sont les principaux dangers pour l'environnement causés par les activités humaines ?",
+      "language": "fr",
+      "source": "8547_environmentalprotectionschool1.pdf",
+      "page": 12
+    },
+    {
+      "question": "Quels sont les principaux animaux menacés par la déforestation en Afrique centrale ?",
+      "language": "fr",
+      "source": "8547_environmentalprotectionschool1.pdf",
+      "page": 25
+    },
+    {
+      "question": "Quels sont les dangers naturels et climatiques auxquels ma région est exposée ?",
+      "language": "fr",
+      "source": "8547_environmentalprotectionschool1.pdf",
+      "page": 39
+    },
+    {
+      "question": "Quels types de catastrophes naturelles ont le plus affecté l'Afrique au cours des 30 dernières années ?",
+      "language": "fr",
+      "source": "8547_environmentalprotectionschool1.pdf",
+      "page": 7
+    },
+    {
+      "question": "What were some of the major natural disasters that affected Southern Africa in the early 2000s?",
+      "language": "en",
+      "source": "8547_environmentalprotectionschool1.pdf",
+      "page": 8
+    },
+    {
+      "question": "Quelles sont les stratégies recommandées pour favoriser des activités économiques respectueuses de l'environnement ?",
+      "language": "fr",
+      "source": "ECHO-min-enviromental-requirements.pdf",
+      "page": 21
+    },
+    {
+      "question": "Quelles sont les pratiques recommandées pour minimiser l'impact environnemental lors de la construction et de l'approvisionnement en matériaux ?",
+      "language": "fr",
+      "source": "ECHO-min-enviromental-requirements.pdf",
+      "page": 16
+    },
+    {
+      "question": "Quelles mesures les partenaires doivent-ils inclure dans leurs propositions de projet pour réduire l'impact environnemental de l'aide humanitaire ?",
+      "language": "fr",
+      "source": "ECHO-min-enviromental-requirements.pdf",
+      "page": 6
+    },
+    {
+      "question": "Comment peut-on réduire les déchets et les impacts environnementaux lors de l'achat de fournitures ?",
+      "language": "fr",
+      "source": "ECHO-min-enviromental-requirements.pdf",
+      "page": 12
+    },
+    {
+      "question": "Comment peut-on améliorer l'efficacité énergétique et la gestion des déchets dans les zones touchées par des catastrophes ou des conflits ?",
+      "language": "fr",
+      "source": "ECHO-min-enviromental-requirements.pdf",
+      "page": 16
+    },
+    {
+      "question": "Quels sont les objectifs de la nouvelle approche mise en place par DG ECHO pour aider les personnes dans le besoin tout en protégeant l'environnement ?",
+      "language": "fr",
+      "source": "ECHO-min-enviromental-requirements.pdf",
+      "page": 5
+    },
+    {
+      "question": "What should be avoided during the construction of new facilities?",
+      "language": "en",
+      "source": "ECHO-min-enviromental-requirements.pdf",
+      "page": 15
+    },
+    {
+      "question": "Comment l'augmentation de la population urbaine affecte-t-elle les zones de biodiversité dans les pays en développement ?",
+      "language": "fr",
+      "source": "Environment_and_human_complete.pdf",
+      "page": 59
+    },
+    {
+      "question": "Quels sont les principaux conseils pour améliorer la production agricole et la gestion des forêts dans les régions arides ?",
+      "language": "fr",
+      "source": "Environment_and_human_complete.pdf",
+      "page": 18
+    },
+    {
+      "question": "Quels sont les principaux facteurs qui dégradent les pêcheries et les écosystèmes marins ?",
+      "language": "fr",
+      "source": "Environment_and_human_complete.pdf",
+      "page": 27
+    },
+    {
+      "question": "Quels acteurs doivent être impliqués pour inverser la dégradation des ressources environnementales dans les pays en développement ?",
+      "language": "fr",
+      "source": "Environment_and_human_complete.pdf",
+      "page": 114
+    },
+    {
+      "question": "Quelles actions sont recommandées pour améliorer la santé des enfants de moins de cinq ans dans les pays en développement ?",
+      "language": "fr",
+      "source": "Environment_and_human_complete.pdf",
+      "page": 110
+    },
+    {
+      "question": "Quelles sont les principales causes directes de la dégradation de l'environnement dans le monde ?",
+      "language": "fr",
+      "source": "Environment_and_human_complete.pdf",
+      "page": 24
+    },
+    {
+      "question": "What factors push people to engage in harmful agricultural practices?",
+      "language": "en",
+      "source": "Environment_and_human_complete.pdf",
+      "page": 65
+    },
+    {
+      "question": "Comment les chercheurs utilisent-ils les théories pour comprendre et expliquer les changements environnementaux ?",
+      "language": "fr",
+      "source": "FULLTEXT01.pdf",
+      "page": 11
+    },
+    {
+      "question": "Comment les habitudes des gens envers les forêts ont-elles évolué dans cette région au cours des dernières décennies ?",
+      "language": "fr",
+      "source": "FULLTEXT01.pdf",
+      "page": 40
+    },
+    {
+      "question": "Comment les discussions informelles avec les habitants ont-elles contribué à la collecte d'informations sur les forêts ?",
+      "language": "fr",
+      "source": "FULLTEXT01.pdf",
+      "page": 31
+    },
+    {
+      "question": "Quels sont les principaux facteurs qui ont influencé les comportements et les attitudes des gens envers l'environnement au cours des cinq à dix dernières années ?",
+      "language": "fr",
+      "source": "FULLTEXT01.pdf",
+      "page": 8
+    },
+    {
+      "question": "Quelles sont les principales causes de la déforestation dans cette région, selon les habitants et les responsables locaux ?",
+      "language": "fr",
+      "source": "FULLTEXT01.pdf",
+      "page": 41
+    },
+    {
+      "question": "Quelles transformations majeures les activités humaines ont-elles apportées à la nature au cours de l'industrialisation ?",
+      "language": "fr",
+      "source": "FULLTEXT01.pdf",
+      "page": 13
+    },
+    {
+      "question": "What are some examples of new governance structures that involve non-state actors in environmental protection?",
+      "language": "en",
+      "source": "FULLTEXT01.pdf",
+      "page": 19
+    },
+    {
+      "question": "Quelles activités ont permis aux élèves de comprendre l'importance de la réutilisation des déchets ?",
+      "language": "fr",
+      "source": "rights_sites_clean_environment_final.pdf",
+      "page": 11
+    },
+    {
+      "question": "Quelles sont les dates importantes en juin et juillet concernant des journées internationales dédiées à des causes spécifiques ?",
+      "language": "fr",
+      "source": "rights_sites_clean_environment_final.pdf",
+      "page": 12
+    },
+    {
+      "question": "Comment peut-on intégrer l'éducation à la durabilité dans les programmes scolaires existants sans tout réinventer ?",
+      "language": "fr",
+      "source": "rights_sites_clean_environment_final.pdf",
+      "page": 10
+    },
+    {
+      "question": "Pourquoi est-il important de protéger l'environnement pour les générations futures ?",
+      "language": "fr",
+      "source": "rights_sites_clean_environment_final.pdf",
+      "page": 1
+    },
+    {
+      "question": "Quelle initiative a permis à une école de voir son engagement pour l'environnement reconnu comme faisant partie d'un mouvement plus large ?",
+      "language": "fr",
+      "source": "rights_sites_clean_environment_final.pdf",
+      "page": 10
+    },
+    {
+      "question": "Combien de temps l'école Head-Royce estime-t-elle nécessaire pour atteindre ses objectifs en matière d'éducation à la durabilité ?",
+      "language": "fr",
+      "source": "rights_sites_clean_environment_final.pdf",
+      "page": 11
+    }
+  ],
+  "off_topic": [
+    "ko",
+    "ok",
+    "merci",
+    "lol",
+    "danse",
+    "test",
+    "sdfghj",
+    "pizza recette",
+    "qui a gagné la coupe du monde ?",
+    "Comment faire un gâteau au chocolat ?",
+    "Who won the football world cup?",
+    "?"
+  ]
+}
