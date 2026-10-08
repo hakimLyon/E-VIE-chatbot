@@ -54,21 +54,22 @@ def _chat_client(model, max_tokens, timeout=120, max_retries=2):
     )
 
 
+# Request budgets: Cloudflare drops a request after 100 s, so the worst case of one chat
+# turn (rewrite 8 + query embedding 2x10 + rerank 2x10 + answer 45) stays below that.
 @lru_cache(maxsize=1)
 def get_llm():
     """Model that writes the final answer."""
-    return _chat_client(CF_AI_CHAT_MODEL, 800)
+    return _chat_client(CF_AI_CHAT_MODEL, 800, timeout=45, max_retries=0)
 
 
 @lru_cache(maxsize=1)
 def get_rewrite_llm():
     """Model that turns the user's message into an English search query. Kept on a short
     leash: when it is slow, the original message is searched instead."""
-    return _chat_client(CF_AI_REWRITE_MODEL, 200, timeout=10, max_retries=1)
+    return _chat_client(CF_AI_REWRITE_MODEL, 200, timeout=8, max_retries=0)
 
 
-@lru_cache(maxsize=1)
-def get_embeddings():
+def _embeddings_client(timeout, max_retries):
     # Workers AI expects raw strings, not tiktoken ids, and caps each request at
     # 60k tokens, so keep batches small.
     return OpenAIEmbeddings(
@@ -77,9 +78,21 @@ def get_embeddings():
         api_key=CF_API_TOKEN,
         check_embedding_ctx_length=False,
         chunk_size=16,
-        timeout=120,
-        max_retries=2,
+        timeout=timeout,
+        max_retries=max_retries,
     )
+
+
+@lru_cache(maxsize=1)
+def get_embeddings():
+    """Embeds questions while a user waits."""
+    return _embeddings_client(timeout=10, max_retries=1)
+
+
+@lru_cache(maxsize=1)
+def get_ingestion_embeddings():
+    """Embeds documents at startup, where patience beats a half-built index."""
+    return _embeddings_client(timeout=120, max_retries=3)
 
 
 def rerank(query, texts, attempts=2):
@@ -91,7 +104,7 @@ def rerank(query, texts, attempts=2):
                 f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{CF_AI_RERANK_MODEL}",
                 headers={"Authorization": f"Bearer {CF_API_TOKEN}"},
                 json={"query": query, "contexts": [{"text": t} for t in texts], "top_k": len(texts)},
-                timeout=15,
+                timeout=10,
             )
             response.raise_for_status()
             break

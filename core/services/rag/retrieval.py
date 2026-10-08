@@ -27,7 +27,7 @@ MIN_RELEVANCE = float(os.getenv("RAG_MIN_RELEVANCE", "0.05"))
 MIN_PASSAGE_RELEVANCE = float(os.getenv("RAG_MIN_PASSAGE_RELEVANCE", "0.01"))
 
 # Bump when the way documents are read or split changes, to force a rebuild.
-INDEX_VERSION = "3"
+INDEX_VERSION = "5"
 
 
 def _index_id():
