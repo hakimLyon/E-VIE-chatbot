@@ -24,18 +24,44 @@ def _read_pages(pdf):
         return [page.get_text() for page in doc]
 
 
+# Pages that hold no knowledge but attract searches for names and organisations:
+# credits, acknowledgements, tables of contents, copyright pages, reference lists.
+_MATTER_HEADING = re.compile(
+    r"^(acknowledg(e)?ments?|bibliography|references|reference list|(table of )?contents|"
+    r"photo(graph)?s? credits?|photos)(\s+[ivxlc\d]+)?\W*$",
+    re.IGNORECASE,
+)
+_REFERENCE_LINE = re.compile(r"^[A-Z][A-Za-z'\-]+,\s*[A-Z]\.|\(\d{4}[a-z]?\)|\b(19|20)\d{2}[a-z]?\.\s")
+
+
+def is_front_or_back_matter(text, page_number):
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if any(_MATTER_HEADING.match(line) for line in lines[:5]):  # below the running head
+        return True
+    # Only near the start: content pages can carry a copyright line in their footer.
+    if page_number <= 4 and re.search(r"\bISBN\b|all rights reserved|reuse policy|©", text, re.IGNORECASE):
+        return True
+    references = sum(bool(_REFERENCE_LINE.search(line)) for line in lines)
+    return len(lines) > 8 and references / len(lines) > 0.35
+
+
 def load_documents():
-    documents = []
+    documents, skipped = [], 0
     for pdf in sorted(DOCS_PATH.glob("*.pdf")):
         for number, text in enumerate(_read_pages(pdf), start=1):
             text = re.sub(r"(\w)-\n(\w)", r"\1\2", text).strip()  # words cut at line ends
-            if text:
-                documents.append(Document(
-                    page_content=text,
-                    metadata={"source": pdf.name, "page": number},
-                ))
+            if not text:
+                continue
+            if is_front_or_back_matter(text, number):
+                skipped += 1
+                continue
+            documents.append(Document(
+                page_content=text,
+                metadata={"source": pdf.name, "page": number},
+            ))
     if not documents:
         raise ValueError(f"No documents found in {DOCS_PATH}")
+    print(f"{len(documents)} pages, {skipped} skipped as credits, contents or references")
     return documents
 
 

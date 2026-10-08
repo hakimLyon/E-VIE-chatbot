@@ -1,6 +1,7 @@
 # pipelines/retrieval.py
 
 import hashlib
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -8,6 +9,8 @@ from pathlib import Path
 from langchain_chroma import Chroma
 
 from core.services.rag.llm_backend import CF_AI_EMBED_MODEL, get_embeddings, rerank
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parents[3]
 DATA_DIR = Path(os.getenv("DATA_DIR", BASE_DIR))
@@ -24,7 +27,7 @@ MIN_RELEVANCE = float(os.getenv("RAG_MIN_RELEVANCE", "0.05"))
 MIN_PASSAGE_RELEVANCE = float(os.getenv("RAG_MIN_PASSAGE_RELEVANCE", "0.01"))
 
 # Bump when the way documents are read or split changes, to force a rebuild.
-INDEX_VERSION = "2"
+INDEX_VERSION = "3"
 
 
 def _index_id():
@@ -61,7 +64,12 @@ def search(query):
     candidates = get_vectorstore().similarity_search(query, k=CANDIDATES)
     if not candidates:
         return []
-    scores = rerank(query, [doc.page_content for doc in candidates])
+    try:
+        scores = rerank(query, [doc.page_content for doc in candidates])
+    except Exception:
+        # Better a plain similarity ranking than an error while Workers AI recovers.
+        logger.warning("Reranker unavailable, falling back to similarity order", exc_info=True)
+        return candidates[:TOP_K]
     ranked = sorted(zip(scores, candidates), key=lambda pair: pair[0], reverse=True)
     if ranked[0][0] < MIN_RELEVANCE:
         return []

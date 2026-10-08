@@ -82,16 +82,22 @@ def get_embeddings():
     )
 
 
-def rerank(query, texts):
+def rerank(query, texts, attempts=2):
     """Relevance score (0-1) of each text for the query, in the order of `texts`."""
     _base_url()  # fail early with a clear message when credentials are missing
-    response = httpx.post(
-        f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{CF_AI_RERANK_MODEL}",
-        headers={"Authorization": f"Bearer {CF_API_TOKEN}"},
-        json={"query": query, "contexts": [{"text": t} for t in texts], "top_k": len(texts)},
-        timeout=60,
-    )
-    response.raise_for_status()
+    for attempt in range(attempts):
+        try:
+            response = httpx.post(
+                f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{CF_AI_RERANK_MODEL}",
+                headers={"Authorization": f"Bearer {CF_API_TOKEN}"},
+                json={"query": query, "contexts": [{"text": t} for t in texts], "top_k": len(texts)},
+                timeout=15,
+            )
+            response.raise_for_status()
+            break
+        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.TransportError):
+            if attempt == attempts - 1:
+                raise
     scores = [0.0] * len(texts)
     for item in response.json()["result"]["response"]:
         scores[item["id"]] = item["score"]
