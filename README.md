@@ -51,10 +51,11 @@ Code: `core/services/sentiment_service.py`, class `SentimentAnalyzer1`.
 
 This is the part I spent most time on. The assistant does not answer from the language model's memory. It looks things up first.
 
-1. **Ingestion** (`core/services/rag/ingestion.py`). PDFs in `docs/` are read with PyMuPDF and cut into chunks of 1000 characters with an overlap of 100. Each chunk is embedded with `@cf/baai/bge-m3` on Workers AI and stored in a persistent Chroma database at `$DATA_DIR/chroma_db`. Ingestion is skipped when the collection already has data (`python manage.py ingest_docs --force` rebuilds it).
-2. **Question rewriting** (`rag_chat.py`). If there is earlier conversation, the model first rewrites the new question so it stands on its own ("and what about the law?" becomes a full question).
-3. **Retrieval** (`retrieval.py`). The five closest chunks by cosine similarity are fetched.
-4. **Answer**. The chat model (`CF_AI_CHAT_MODEL`, default `@cf/mistralai/mistral-small-3.1-24b-instruct`) gets those chunks and is told to answer using only that context, in the language of the question.
+1. **Ingestion** (`core/services/rag/ingestion.py`). PDFs in `docs/` are read with PyMuPDF and cut into chunks of 1000 characters with an overlap of 100. When a PDF has a `<name>.ocr.txt` next to it, that text is used instead: `Environment_and_human_complete.pdf` embeds fonts without a Unicode map, so its text layer extracts as gibberish, and its text comes from `ocrmypdf --force-ocr -l eng --sidecar`. Chunks that are mostly noise (page numbers, figure tables, unreadable text) are dropped. Each chunk is embedded with `@cf/baai/bge-m3` on Workers AI and stored in Chroma under `$DATA_DIR/chroma_<fingerprint>`, where the fingerprint covers the documents, the embedding model and the ingestion version. Changing any of them builds a new index on the next start; `python manage.py ingest_docs --force` rebuilds the current one.
+2. **Routing** (`rag_chat.py`). Greetings and thanks get a short reply without any search, and messages with no real word ("ko", "?") get a fixed request for clarification. Replies follow the language of the conversation (French or English).
+3. **Search query**. A small model (`CF_AI_REWRITE_MODEL`) turns the message into a standalone question in English, resolving follow-ups such as "and in Africa?". The documents are in English and the reranker below only judges English queries reliably.
+4. **Retrieval** (`retrieval.py`). The 20 closest chunks by cosine similarity are scored by a cross-encoder (`@cf/baai/bge-reranker-base`). If even the best one is below the relevance gate, the assistant says the documents do not cover the topic instead of answering from unrelated text; otherwise the five best are kept.
+5. **Answer**. The chat model (`CF_AI_CHAT_MODEL`, default `@cf/mistralai/mistral-small-3.1-24b-instruct`) gets those chunks and is told to answer using only them, in the language of the conversation.
 
 The knowledge base is five PDFs on environmental protection, environmental requirements, human well-being and the right to a clean environment (about 300 pages in total).
 
@@ -146,9 +147,12 @@ curl -X POST -H "Content-Type: application/json" -d '{"message":"What is the rig
 | `DATA_DIR` | where SQLite, uploads and the Chroma index live (`/data` in Docker) |
 | `CF_ACCOUNT_ID`, `CF_API_TOKEN` | Cloudflare account id and Workers AI token |
 | `CF_AI_CHAT_MODEL` | answer model, default `@cf/mistralai/mistral-small-3.1-24b-instruct` (GLM models work too, their reasoning is turned down automatically) |
-| `CF_AI_REWRITE_MODEL` | fast model for rewriting follow-up questions, default `@cf/zai-org/glm-4.7-flash` |
+| `CF_AI_REWRITE_MODEL` | fast model that writes the English search query, default `@cf/zai-org/glm-4.7-flash` |
+| `CF_AI_RERANK_MODEL` | cross-encoder that scores passages, default `@cf/baai/bge-reranker-base` |
 | `CF_AI_EMBED_MODEL` | embedding model, default `@cf/baai/bge-m3` (changing it requires `ingest_docs --force`) |
-| `RAG_TOP_K`, `RAG_HISTORY_TURNS` | chunks retrieved per question, conversation turns kept per session |
+| `RAG_CANDIDATES`, `RAG_TOP_K` | chunks proposed by the vector search (20) and kept after reranking (5) |
+| `RAG_MIN_RELEVANCE`, `RAG_MIN_PASSAGE_RELEVANCE` | reranker score the best passage must reach (0.05), and the floor for the others (0.01) |
+| `RAG_HISTORY_TURNS` | conversation turns kept per session |
 | `WEB_CONCURRENCY` | gunicorn workers in Docker, default 2 |
 
 The `.env` file is ignored by git. Do not commit real keys.
@@ -158,7 +162,7 @@ The `.env` file is ignored by git. Do not commit real keys.
 I would rather list these than have someone find them later.
 
 - **Persistence is partial.** The database models exist and the admin is set up, but only the chat endpoint writes to them; detection and sentiment results are not stored.
-- **No evaluation yet.** I have not measured retrieval quality (recall at k, answer faithfulness) or how well the confidence scores are calibrated. Softmax confidence from the leaf model is not a probability you should fully trust, especially on field photos that look different from the training images.
+- **Evaluation is small.** `python manage.py eval_rag` runs `evaluation/questions.json`: 34 questions written from random passages, plus 12 off-topic messages. With the OCR text, reranking and routing, the source page is found for 27 of 34 questions (25 before), the source PDF for 32 (27 before), and no off-topic message gets documents (10 of 12 did). Answer faithfulness is not measured, and neither is the calibration of the leaf model's softmax confidence, which you should not fully trust on field photos that look different from the training images.
 - **Sentiment is binary.** A neutral class would be more honest.
 - **Chunking is basic.** A fixed 1000 character split can cut a paragraph in the middle. Splitting on structure or testing other sizes is on the list.
 - **The chat endpoint skips CSRF checks**, which is fine locally and not fine in production.
