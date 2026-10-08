@@ -218,5 +218,37 @@
     "Comment faire un gâteau au chocolat ?",
     "Who won the football world cup?",
     "?"
+  ],
+  "acknowledgements": [
+    "oh i see",
+    "i see",
+    "ah ok",
+    "ah d'accord",
+    "je vois",
+    "got it",
+    "understood",
+    "makes sense",
+    "ok thanks",
+    "ok merci",
+    "super merci",
+    "parfait merci",
+    "intéressant",
+    "wow",
+    "cool thanks",
+    "c'est noté",
+    "compris",
+    "great, thanks!",
+    "ok cool",
+    "d'accord merci beaucoup"
+  ],
+  "keep_as_questions": [
+    "pollution",
+    "Pourquoi ?",
+    "i see, and what about water?",
+    "tell me more",
+    "Et en Afrique ?",
+    "c'est quoi la biodiversité",
+    "ok, and the role of schools?",
+    "UNICEF"
   ]
 }
