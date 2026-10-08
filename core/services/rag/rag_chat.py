@@ -49,15 +49,26 @@ NO_DOCUMENTS_REPLY = {
 # (a French question scored 0.003 on the very passage its English version scored 0.999),
 # so every question is searched in English. The same call resolves follow-ups.
 SEARCH_QUERY_SYSTEM = """You turn the user's last message into a search query for English documents.
-Write it as one standalone question in English. Use the conversation only to resolve a
-genuine follow-up (pronouns, "and ...?", "why?", "yes"). If the message is a new topic,
-translate it on its own and do not mix in the earlier topic. If it asks for nothing
-(thanks, agreement, a reaction such as "oh i see"), reply exactly NONE. Never answer it.
-Reply with the question or NONE only, without any label.
+Write it as one standalone question in English about the subject itself, not about a
+document: drop "what does the code / report / document say about" and "according to the
+report", but keep what narrows the subject down (country, sector, group of people).
+Use the conversation only to resolve a genuine follow-up (pronouns, "and ...?", "why?",
+"yes"). If the message is a new topic, translate it on its own and do not mix in the
+earlier topic. If it asks for nothing (thanks, agreement, a reaction such as "oh i see"),
+reply exactly NONE. Never answer it. Reply with the question or NONE only, no label.
+
+Acronyms used in the documents: CDN = contribution déterminée au niveau national
+(nationally determined contribution, NDC); GIEC = IPCC; CDB = Convention on Biological
+Diversity; GMV = Great Green Wall; EIES = environmental and social impact study;
+ODD = Sustainable Development Goals; CNULCD = UNCCD; PNUE = UNEP; FAO = FAO.
 
 Examples (message -> reply):
 "Et les écoles, quel est leur rôle ?", after a question on the right to a healthy
 environment -> What is the role of schools in the right to a healthy environment?
+"Que dit la loi malienne sur l'eau à propos des forages ?" -> What rules apply to
+drilling boreholes and wells in Mali?
+"According to the UNEP report, how fast are species disappearing?" -> How fast are
+species disappearing?
 "cuisine" -> What is cooking?
 "oui", after the assistant asked "Voulez-vous des exemples concrets de gestion des
 déchets ?" -> What are concrete examples of waste management?
