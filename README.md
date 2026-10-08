@@ -11,7 +11,7 @@ The interface is in French, the code and this file are in English.
 | Home | `/` | Landing page with the three tools |
 | Plant disease detection | `/detect/` | Upload a leaf photo, get the three most likely diagnoses with confidence scores |
 | Sentiment analysis | `/sentiment/` | Type some text, get a positive or negative label |
-| Chat assistant | `/chat/` | Ask a question, get an answer built from a set of environmental PDFs (RAG) |
+| Chat assistant | `/chat/` | Ask a question, get an answer built from a set of environmental PDFs (RAG), with the pages it cites; the documents are listed next to the chat |
 
 Each page also has a JSON endpoint under `/api/`, so the same models can be called from another app or from `curl`.
 
@@ -51,13 +51,15 @@ Code: `core/services/sentiment_service.py`, class `SentimentAnalyzer1`.
 
 This is the part I spent most time on. The assistant does not answer from the language model's memory. It looks things up first.
 
-1. **Ingestion** (`core/services/rag/ingestion.py`). PDFs in `docs/` are read with PyMuPDF and cut into chunks of 1000 characters with an overlap of 100. When a PDF has a `<name>.ocr.txt` next to it, that text is used instead: `Environment_and_human_complete.pdf` embeds fonts without a Unicode map, so its text layer extracts as gibberish, and its text comes from `ocrmypdf --force-ocr -l eng --sidecar`. Pages of credits, contents, acknowledgements and references are skipped, and chunks that are mostly noise (page numbers, figure tables, unreadable text) are dropped. Each chunk is embedded with `@cf/baai/bge-m3` on Workers AI and stored in Chroma under `$DATA_DIR/chroma_<fingerprint>`, where the fingerprint covers the documents, the embedding model and the ingestion version. Changing any of them builds a new index on the next start; `python manage.py ingest_docs --force` rebuilds the current one.
+1. **Ingestion** (`core/services/rag/ingestion.py`). PDFs in `docs/` are read with PyMuPDF and cut into chunks of 1000 characters with an overlap of 100. When a PDF has a `<name>.ocr.txt` next to it, that text is used instead: `Environment_and_human_complete.pdf` embeds fonts without a Unicode map, so its text layer extracts as gibberish, and its text comes from `ocrmypdf --force-ocr -l eng --sidecar`. Pages of credits, contents, acknowledgements, author lists and references are skipped (headings in English or French; a reference list also takes the reference-heavy pages next to it), and chunks that are mostly noise (page numbers, figure tables, unreadable text) are dropped. Each chunk is embedded with `@cf/baai/bge-m3` on Workers AI and stored in Chroma under `$DATA_DIR/chroma_<fingerprint>`, where the fingerprint covers the documents, the embedding model and the ingestion version. Changing any of them builds a new index on the next start, with four embedding requests in flight (about 35 s for 2,300 chunks); `python manage.py ingest_docs --force` rebuilds the current one.
 2. **Routing** (`rag_chat.py`). Greetings, thanks and acknowledgements ("oh i see", "c'est noté") get a short reply without any search: a message is an acknowledgement when it has no question mark and only interjections and politeness words. Messages with no real word ("ko", "?") get a fixed request for clarification. A "yes" to an offer the assistant just made ("Voulez-vous des exemples ?") searches for what was offered. Replies follow the language of the conversation (French or English).
 3. **Search query**. A small model (`CF_AI_REWRITE_MODEL`) turns the message into a standalone question in English, resolving follow-ups such as "and in Africa?", or answers NONE when the message asks for nothing, which leads to a short reply instead of a search. The documents are in English and the reranker below only judges English queries reliably.
 4. **Retrieval** (`retrieval.py`). The 20 closest chunks by cosine similarity are scored by a cross-encoder (`@cf/baai/bge-reranker-base`). If even the best one is below the relevance gate, the assistant says the documents do not cover the topic instead of answering from unrelated text; otherwise the five best are kept.
 5. **Answer**. The chat model (`CF_AI_CHAT_MODEL`, default `@cf/mistralai/mistral-small-3.1-24b-instruct`) gets those chunks and is told to answer using only them, in the language of the conversation.
 
-The knowledge base is five PDFs on environmental protection, environmental requirements, human well-being and the right to a clean environment (about 300 pages in total).
+The knowledge base is 13 PDFs listed in `docs/catalog.json` (title, publisher, year, language and a short description, shown in the documents panel of the chat page): Senegal's environment code (2023) and nationally determined contribution (2020), the Great Green Wall status report (UNCCD, 2020), a guide to municipal solid waste in Africa, the IPCC AR6 WGI Summary for Policymakers, the Kunming-Montreal biodiversity framework, FAO's State of the World's Forests 2024 and a UN report on education for sustainable development, all in French; plus five English documents on environmental protection, human well-being, humanitarian requirements and the right to a clean environment. About 650 pages are indexed. Each answer lists up to three pages it was written from, linking to `/documents/<file>#page=<n>`, which opens the PDF at that page.
+
+Three PDFs had their images downsampled for the browser; the Great Green Wall report could not be downsampled without breaking its text, so its compressed copy is served and the exact text of the original sits next to it as a sidecar.
 
 ## Project layout
 
@@ -127,7 +129,7 @@ Deployment on Coolify: application from this Git repository, build pack **Docker
 |----------|--------|------|---------|
 | `/api/detect/` | POST | form-data with `image` | `top_predictions`: list of label and confidence |
 | `/api/sentiment/` | POST | `{"text": "..."}` | `sentiment`, `score`, `explanation` |
-| `/api/chat/` | POST | `{"message": "..."}` | `response` |
+| `/api/chat/` | POST | `{"message": "..."}` | `response`, and `sources`: up to three `{title, page, url}` the answer was written from |
 | `/api/chat/history/` | GET | none | last 50 saved messages |
 
 ```bash
@@ -162,7 +164,7 @@ The `.env` file is ignored by git. Do not commit real keys.
 I would rather list these than have someone find them later.
 
 - **Persistence is partial.** The database models exist and the admin is set up, but only the chat endpoint writes to them; detection and sentiment results are not stored.
-- **Evaluation is small.** `python manage.py eval_rag` runs `evaluation/questions.json`: 34 questions written from random passages, plus 12 off-topic messages. With the OCR text, reranking and routing, the source page is found for 28 of 34 questions (25 before), the source PDF for 32 (27 before), and no off-topic message gets documents (10 of 12 did). All 20 acknowledgements in the set are answered without a search, and the 8 short questions next to them are still searched. Answer faithfulness is not measured, and neither is the calibration of the leaf model's softmax confidence, which you should not fully trust on field photos that look different from the training images.
+- **Evaluation is small.** `python manage.py eval_rag` runs `evaluation/questions.json`: 50 questions written from random passages (16 on the French documents), plus 12 off-topic messages, 20 acknowledgements and 8 short questions. The source page is found for 39 of 50 questions and the source PDF for 46; no off-topic message gets documents, all acknowledgements are answered without a search, and the short questions are still searched. Answer faithfulness is not measured, and neither is the calibration of the leaf model's softmax confidence, which you should not fully trust on field photos that look different from the training images.
 - **Sentiment is binary.** A neutral class would be more honest.
 - **Chunking is basic.** A fixed 1000 character split can cut a paragraph in the middle. Splitting on structure or testing other sizes is on the list.
 - **The chat endpoint skips CSRF checks**, which is fine locally and not fine in production.

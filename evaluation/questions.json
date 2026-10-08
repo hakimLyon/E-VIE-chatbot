@@ -203,6 +203,102 @@
       "language": "fr",
       "source": "rights_sites_clean_environment_final.pdf",
       "page": 11
+    },
+    {
+      "question": "Quelles sont les responsabilités des ménages et des collectivités territoriales en matière de gestion des déchets ?",
+      "language": "fr",
+      "source": "senegal_code_environnement_2023.pdf",
+      "page": 25
+    },
+    {
+      "question": "Quelles sont les sanctions prévues pour une personne qui pollue ou dégrade les sols de manière accidentelle ?",
+      "language": "fr",
+      "source": "senegal_code_environnement_2023.pdf",
+      "page": 48
+    },
+    {
+      "question": "Combien d'argent est nécessaire pour renforcer les capacités dans le domaine environnemental entre 2020 et 2030 ?",
+      "language": "fr",
+      "source": "senegal_cdn_2020.pdf",
+      "page": 42
+    },
+    {
+      "question": "Qui est responsable de la mise en œuvre et du suivi des actions prévues dans la contribution nationale déterminée ?",
+      "language": "fr",
+      "source": "senegal_cdn_2020.pdf",
+      "page": 41
+    },
+    {
+      "question": "Quels sont les risques associés à une augmentation significative de la température mondiale ?",
+      "language": "fr",
+      "source": "giec_ar6_resume_decideurs.pdf",
+      "page": 30
+    },
+    {
+      "question": "Quels sont les impacts à court terme sur l'atmosphère et la qualité de l'air des scénarios d'émissions de gaz à effet de serre très faibles par rapport à ceux très élevés ?",
+      "language": "fr",
+      "source": "giec_ar6_resume_decideurs.pdf",
+      "page": 34
+    },
+    {
+      "question": "Comment les différentes conventions et institutions internationales collaborent-elles pour renforcer la protection de la biodiversité ?",
+      "language": "fr",
+      "source": "cdb_kunming_montreal_2022.pdf",
+      "page": 5
+    },
+    {
+      "question": "Quels sont les principaux objectifs et actions prévus par le cadre pour protéger et restaurer la biodiversité ?",
+      "language": "fr",
+      "source": "cdb_kunming_montreal_2022.pdf",
+      "page": 5
+    },
+    {
+      "question": "Quels efforts financiers et politiques l'Inde a-t-elle déployés pour promouvoir l'agroforesterie et quels résultats ont-ils produits ?",
+      "language": "fr",
+      "source": "fao_forets_du_monde_2024.pdf",
+      "page": 76
+    },
+    {
+      "question": "Comment les peuples autochtones peuvent-ils être soutenus pour participer activement à la protection de la biodiversité et à la lutte contre le changement climatique ?",
+      "language": "fr",
+      "source": "fao_forets_du_monde_2024.pdf",
+      "page": 71
+    },
+    {
+      "question": "Quelles sont les différentes méthodes utilisées pour traiter les déchets organiques ?",
+      "language": "fr",
+      "source": "dechets_solides_afrique.pdf",
+      "page": 18
+    },
+    {
+      "question": "Quels types d'équipements et de méthodes sont nécessaires pour gérer efficacement les déchets dans une zone spécifique ?",
+      "language": "fr",
+      "source": "dechets_solides_afrique.pdf",
+      "page": 18
+    },
+    {
+      "question": "Quelles compétences l'éducation au développement durable aide-t-elle à développer pour mieux réagir aux crises imprévues comme la pandémie de COVID-19 ?",
+      "language": "fr",
+      "source": "onu_education_dd_2021.pdf",
+      "page": 8
+    },
+    {
+      "question": "Quelles démarches sont envisagées pour garantir un financement suffisant et efficace de l'éducation à l'échelle mondiale ?",
+      "language": "fr",
+      "source": "onu_education_dd_2021.pdf",
+      "page": 5
+    },
+    {
+      "question": "Quels types d'entreprises pourraient être intéressés par des projets visant à lutter contre la désertification en Afrique ?",
+      "language": "fr",
+      "source": "unccd_grande_muraille_verte_2020.pdf",
+      "page": 41
+    },
+    {
+      "question": "Combien d'argent a été investi par des projets internationaux pour soutenir un vaste projet écologique en Afrique ?",
+      "language": "fr",
+      "source": "unccd_grande_muraille_verte_2020.pdf",
+      "page": 31
     }
   ],
   "off_topic": [
